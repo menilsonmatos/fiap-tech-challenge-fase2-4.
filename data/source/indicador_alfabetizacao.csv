@@ -1,0 +1,11 @@
+ano,sigla_uf,id_municipio,nome_municipio,percentual_alfabetizado,meta_percentual,total_avaliados,fonte,data_ingestao
+2023,CE,2304400,Fortaleza,58.4,60.0,12850,INEP/Base dos Dados,2026-08-01T10:00:00+00:00
+2024,CE,2304400,Fortaleza,63.1,64.0,13120,INEP/Base dos Dados,2026-08-01T10:00:00+00:00
+2024,CE,2303709,Caucaia,55.2,62.0,3410,INEP/Base dos Dados,2026-08-01T10:00:00+00:00
+2024,CE,2307650,Maracanaú,61.7,62.0,2750,INEP/Base dos Dados,2026-08-01T10:00:00+00:00
+2023,SP,3550308,São Paulo,67.8,65.0,45200,INEP/Base dos Dados,2026-08-01T10:00:00+00:00
+2024,SP,3550308,São Paulo,70.5,68.0,46100,INEP/Base dos Dados,2026-08-01T10:00:00+00:00
+2024,SP,3509502,Campinas,72.1,68.0,8820,INEP/Base dos Dados,2026-08-01T10:00:00+00:00
+2024,BA,2927408,Salvador,52.8,61.0,11800,INEP/Base dos Dados,2026-08-01T10:00:00+00:00
+2024,BA,2910800,Feira de Santana,49.3,61.0,5180,INEP/Base dos Dados,2026-08-01T10:00:00+00:00
+

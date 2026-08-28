@@ -1,0 +1,4 @@
+{"event_id":"evt-001","event_type":"indicador_atualizado","event_time":"2026-08-18T12:00:00Z","payload":{"ano":2024,"sigla_uf":"CE","id_municipio":"2304400","nome_municipio":"Fortaleza","percentual_alfabetizado":63.4,"meta_percentual":64.0,"total_avaliados":13150,"fonte":"INEP/atualização"}}
+{"event_id":"evt-002","event_type":"meta_atualizada","event_time":"2026-08-18T12:01:00Z","payload":{"ano":2024,"sigla_uf":"BA","id_municipio":"2927408","nome_municipio":"Salvador","percentual_alfabetizado":52.8,"meta_percentual":62.0,"total_avaliados":11800,"fonte":"INEP/atualização"}}
+{"event_id":"evt-003","event_type":"resultado_publicado","event_time":"2026-08-18T12:02:00Z","payload":{"ano":2024,"sigla_uf":"SP","id_municipio":"3509502","nome_municipio":"Campinas","percentual_alfabetizado":72.4,"meta_percentual":68.0,"total_avaliados":8850,"fonte":"INEP/atualização"}}
+
