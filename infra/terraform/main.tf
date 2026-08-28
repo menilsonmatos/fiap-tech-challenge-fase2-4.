@@ -19,7 +19,11 @@ resource "aws_s3_bucket_public_access_block" "data" {
 }
 resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
   bucket = aws_s3_bucket.data.id
-  rule { apply_server_side_encryption_by_default { sse_algorithm = "AES256" } }
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
 }
 resource "aws_s3_object" "sample" {
   bucket = aws_s3_bucket.data.id
@@ -110,14 +114,38 @@ resource "aws_glue_catalog_table" "gold_uf" {
     input_format  = "org.apache.hadoop.mapred.TextInputFormat"
     output_format = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
     ser_de_info { serialization_library = "org.apache.hadoop.hive.serde2.OpenCSVSerde" }
-    columns { name = "ano", type = "int" }
-    columns { name = "sigla_uf", type = "string" }
-    columns { name = "percentual_alfabetizado_ponderado", type = "double" }
-    columns { name = "meta_percentual_ponderada", type = "double" }
-    columns { name = "gap_meta_pp", type = "double" }
-    columns { name = "municipios", type = "int" }
-    columns { name = "municipios_na_meta", type = "int" }
-    columns { name = "total_avaliados", type = "bigint" }
+    columns {
+      name = "ano"
+      type = "int"
+    }
+    columns {
+      name = "sigla_uf"
+      type = "string"
+    }
+    columns {
+      name = "percentual_alfabetizado_ponderado"
+      type = "double"
+    }
+    columns {
+      name = "meta_percentual_ponderada"
+      type = "double"
+    }
+    columns {
+      name = "gap_meta_pp"
+      type = "double"
+    }
+    columns {
+      name = "municipios"
+      type = "int"
+    }
+    columns {
+      name = "municipios_na_meta"
+      type = "int"
+    }
+    columns {
+      name = "total_avaliados"
+      type = "bigint"
+    }
   }
 }
 resource "aws_athena_workgroup" "analytics" {
