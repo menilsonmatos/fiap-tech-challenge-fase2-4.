@@ -12,6 +12,7 @@ data/bronze/
 data/silver/
 data/gold/
 data/quarantine/
+data/official/
 dist/
 build/
 *.egg-info/

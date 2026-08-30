@@ -2,7 +2,7 @@
 
 Validação executada sem cloud e sem dependências externas.
 
-- 15 testes executados e aprovados, incluindo o transformador usado pela AWS Lambda.
+- 19 testes executados e aprovados, incluindo integração oficial e o handler AWS Lambda.
 - 9 registros recebidos no batch.
 - 9 registros publicados na Silver.
 - 0 erro e 0 aviso de qualidade.
@@ -12,3 +12,7 @@ Validação executada sem cloud e sem dependências externas.
 
 O manifesto JSON de execução está em `demo-output/manifests` e permite conferir o
 `run_id`, a origem, a cópia Bronze, os volumes e o status `success`.
+
+Os números acima pertencem à fixture técnica original. Os testes de integração oficial
+usam arquivos mínimos com o mesmo esquema público, em `tests/fixtures/official`, mas não
+substituem a execução final com os extratos reais em `data/official`.

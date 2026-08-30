@@ -1,5 +1,9 @@
 # Demonstração local
 
+O fluxo prioritário usa os extratos reais da Base dos Dados. Consulte
+`docs/dados-oficiais.md` e execute `batch-official`. O comando abaixo é uma validação
+técnica offline com fixtures sintéticas e não produz indicadores oficiais.
+
 Esta é a forma de validar o projeto sem depender da sessão do AWS Academy.
 A demonstração executa o pipeline batch, simula o streaming e materializa localmente as
 camadas Bronze, Silver e Gold. O Terraform e os módulos de nuvem permanecem no repositório

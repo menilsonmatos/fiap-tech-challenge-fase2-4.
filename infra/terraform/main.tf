@@ -31,14 +31,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
     }
   }
 }
-resource "aws_s3_object" "sample" {
-  bucket = aws_s3_bucket.data.id
-  key = "bronze/indicador_alfabetizacao.csv"
-  source = "${path.module}/../../data/source/indicador_alfabetizacao.csv"
-  etag = filemd5("${path.module}/../../data/source/indicador_alfabetizacao.csv")
-  content_type = "text/csv"
-}
-
 data "archive_file" "lambda" {
   type = "zip"
   source_dir = "${path.module}/../../src"

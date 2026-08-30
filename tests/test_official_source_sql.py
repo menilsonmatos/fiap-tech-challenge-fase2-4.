@@ -11,6 +11,9 @@ class OfficialSourceSqlTests(unittest.TestCase):
     def test_uses_all_required_official_tables(self):
         for table in (
             "basedosdados.br_inep_avaliacao_alfabetizacao.municipio",
+            "basedosdados.br_inep_avaliacao_alfabetizacao.uf",
+            "basedosdados.br_inep_avaliacao_alfabetizacao.meta_alfabetizacao_brasil",
+            "basedosdados.br_inep_avaliacao_alfabetizacao.meta_alfabetizacao_uf",
             "basedosdados.br_inep_avaliacao_alfabetizacao.meta_alfabetizacao_municipio",
             "basedosdados.br_inep_avaliacao_alfabetizacao.alunos",
             "basedosdados.br_bd_diretorios_brasil.municipio",
@@ -34,8 +37,8 @@ class OfficialSourceSqlTests(unittest.TestCase):
             self.assertRegex(normalized, rf"\b{field}\b")
 
     def test_filters_comparable_year_and_network(self):
-        self.assertGreaterEqual(QUERY.count("ano = 2024"), 3)
-        self.assertGreaterEqual(QUERY.count("LOWER(rede) = 'municipal'"), 3)
+        self.assertGreaterEqual(QUERY.count("ano = 2024"), 6)
+        self.assertIn("LOWER(rede) LIKE '%municip%'", QUERY)
 
 
 if __name__ == "__main__":

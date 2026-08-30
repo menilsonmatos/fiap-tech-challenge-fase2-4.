@@ -1,0 +1,4 @@
+ano,id_municipio,id_escola,id_aluno,rede,presenca,preenchimento_caderno,alfabetizado,proficiencia,peso_aluno
+2024,2304400,E001,A001,Municipal,1,1,1,760.0,1.0
+2024,2304400,E001,A002,Municipal,1,1,0,710.0,1.0
+2024,2303709,E002,A003,Municipal,1,1,1,750.0,1.0

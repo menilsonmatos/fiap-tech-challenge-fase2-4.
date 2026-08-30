@@ -34,7 +34,8 @@ flowchart LR
 ## Estrutura
 
 ```text
-data/source/                 amostra reproduzível para demonstração
+data/source/                 fixtures sintéticas exclusivas para testes e streaming
+data/official/               extratos oficiais locais (ignorado pelo Git)
 docs/                        decisões, FinOps, operação e implantação
 infra/terraform/             infraestrutura AWS como código
 scripts/publish_events.py    publicação de eventos no Kinesis
@@ -44,7 +45,26 @@ tests/                       testes unitários e de integração
 demo-local.ps1               demonstração offline em um comando
 ```
 
-## Demonstração local
+## Pipeline oficial
+
+A entrada principal é o conjunto `br_inep_avaliacao_alfabetizacao`, publicado pelo INEP
+na Base dos Dados. O pipeline integra `municipio`, `uf`, `meta_alfabetizacao_brasil`,
+`meta_alfabetizacao_uf`, `meta_alfabetizacao_municipio` e `alunos`; o diretório de
+municípios fornece nome e sigla da UF.
+
+Após extrair as fontes conforme [docs/dados-oficiais.md](docs/dados-oficiais.md), execute:
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m alfabetizacao_pipeline.cli batch-official `
+  --source-dir data/official `
+  --output demo-output
+```
+
+Os extratos oficiais não são versionados porque a tabela de alunos é volumosa. O manifesto
+registra a origem e o volume recebido de cada entidade.
+
+## Demonstração técnica local
 
 Requer Python 3.11 ou superior e não precisa de internet:
 
@@ -53,8 +73,8 @@ Set-ExecutionPolicy -Scope Process Bypass
 .\demo-local.ps1
 ```
 
-São geradas as camadas em `demo-output/`, incluindo manifesto de execução, Silver, Gold,
-quarentena e streaming simulado. Veja [DEMO_LOCAL.md](DEMO_LOCAL.md).
+Sem os extratos oficiais, o script usa fixtures sintéticas apenas para testar código e
+streaming. Seus resultados não são evidência estatística. Veja [DEMO_LOCAL.md](DEMO_LOCAL.md).
 
 ## Implementação AWS
 
@@ -72,12 +92,12 @@ deve ocorrer no Learner Lab, em `us-east-1`, e ser destruída após a gravação
 
 ## Fonte dos dados
 
-A demonstração usa uma fixture sintética em `data/source`, identificada como não oficial.
-A extração oficial está definida em `sql/00_source_basedosdados.sql` e consulta a Avaliação
-da Alfabetização do INEP publicada pela Base dos Dados. O adaptador devolve o contrato:
+A fonte obrigatória é a [Avaliação da Alfabetização do INEP na Base dos Dados](https://basedosdados.org/dataset/073a39d4-89cf-4068-b1e8-34ed0d9c0b72).
+A extração reproduzível está em `scripts/extract_official_data.py`, e a consulta integrada
+de referência está em `sql/00_source_basedosdados.sql`. O adaptador devolve o contrato:
 
 `ano`, `sigla_uf`, `id_municipio`, `nome_municipio`, `percentual_alfabetizado`,
-`meta_percentual`, `total_avaliados`, `fonte` e `data_ingestao`.
+`meta_percentual`, `total_avaliados`, comparativos de UF/Brasil, `fonte` e `data_ingestao`.
 
 ## Qualidade e segurança
 
@@ -103,8 +123,9 @@ resultados precisam de auditoria de viés por UF e porte municipal.
 
 ## Evidências da validação na AWS
 
-A solução foi implantada e validada no AWS Academy Learner Lab, em `us-east-1`. As
-capturas foram anonimizadas e mostram o ciclo completo, da criação à remoção dos recursos.
+A infraestrutura foi implantada e validada no AWS Academy Learner Lab, em `us-east-1`.
+Estas capturas históricas comprovam o ciclo técnico com a fixture inicial. A validação final
+de dados deve ser refeita com os extratos oficiais antes da entrega.
 
 | Etapa | Evidência |
 |---|---|
@@ -119,7 +140,8 @@ capturas foram anonimizadas e mostram o ciclo completo, da criação à remoçã
 
 ## Limitações
 
-- a fixture local é sintética e não deve ser apresentada como resultado oficial;
+- as fixtures em `data/source` e `tests/fixtures` existem somente para testes automatizados;
+- a execução final exige extratos reais da Base dos Dados em `data/official`;
 - o Learner Lab restringe regiões, serviços, sessão e orçamento;
 - a infraestrutura AWS precisa ser destruída ao final da demonstração;
 - o projeto entrega a base analítica, não um modelo de IA treinado.

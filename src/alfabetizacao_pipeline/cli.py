@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from .io_local import read_csv
-from .local_pipeline import run_batch, simulate_stream
+from .local_pipeline import run_batch, run_official_batch, simulate_stream
 from .quality import validate_dataset
 
 
@@ -15,6 +15,11 @@ def build_parser() -> argparse.ArgumentParser:
     batch = sub.add_parser("batch", help="Executa o pipeline batch local")
     batch.add_argument("--source", type=Path, required=True)
     batch.add_argument("--output", type=Path, default=Path("data"))
+    official = sub.add_parser(
+        "batch-official", help="Integra os extratos oficiais da Base dos Dados"
+    )
+    official.add_argument("--source-dir", type=Path, required=True)
+    official.add_argument("--output", type=Path, default=Path("data"))
     stream = sub.add_parser("simulate-stream", help="Simula eventos de streaming")
     stream.add_argument("--events", type=Path, required=True)
     stream.add_argument("--output", type=Path, default=Path("data"))
@@ -27,6 +32,8 @@ def main() -> int:
     args = build_parser().parse_args()
     if args.command == "batch":
         result = run_batch(args.source, args.output)
+    elif args.command == "batch-official":
+        result = run_official_batch(args.source_dir, args.output)
     elif args.command == "simulate-stream":
         result = simulate_stream(args.events, args.output)
     else:
@@ -38,4 +45,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
