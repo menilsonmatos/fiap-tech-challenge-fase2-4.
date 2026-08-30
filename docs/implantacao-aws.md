@@ -5,6 +5,9 @@ recursos são S3, Lambda, Kinesis, Glue Data Catalog, Athena e CloudWatch.
 
 ## Antes de iniciar
 
+Prepare os extratos e o ZIP local antes de ligar o laboratório, conforme
+[transferencia-dados-oficiais.md](transferencia-dados-oficiais.md).
+
 1. Inicie o Learner Lab e espere o indicador ficar verde.
 2. Abra o Console pelo link AWS do laboratório.
 3. Abra o CloudShell e confirme `aws sts get-caller-identity`.
@@ -41,7 +44,7 @@ PYTHONPATH=src python scripts/upload_official_sources.py \
 ## Executar o batch oficial
 
 ```bash
-FUNCTION=$(terraform output -raw batch_function)
+FUNCTION=$(terraform -chdir=infra/terraform output -raw batch_function)
 aws lambda invoke --function-name "$FUNCTION" --payload '{}' --cli-binary-format raw-in-base64-out batch-result.json
 cat batch-result.json
 ```
