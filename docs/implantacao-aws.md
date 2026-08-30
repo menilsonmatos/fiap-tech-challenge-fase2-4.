@@ -47,8 +47,10 @@ cat batch-result.json
 ```
 
 O evento vazio usa, por padrão, os sete objetos em `bronze/oficial/`. O resultado esperado
-contém `source` igual à Base dos Dados, volumes por entidade, `status: success` e zero erro
-de relacionamento ou qualidade.
+contém `source` igual à Base dos Dados, volumes por entidade e balanço entre municípios
+recebidos, publicados e excluídos. `alunos_agregados.csv` contém somente contagens, nunca
+microdados. O status pode ser `success_with_quarantine` quando as fontes têm cobertura
+diferente; revise as ocorrências antes de aceitar o resultado.
 
 ## Demonstrar streaming
 

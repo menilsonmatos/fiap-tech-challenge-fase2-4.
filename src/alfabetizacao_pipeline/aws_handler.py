@@ -71,6 +71,9 @@ def transform_official_csvs(
     manifest = {
         "source": "Base dos Dados / INEP - br_inep_avaliacao_alfabetizacao",
         "source_rows": integration.source_rows,
+        "municipal_input_rows": integration.municipal_input_rows,
+        "municipal_excluded_rows": integration.municipal_input_rows - len(valid),
+        "students_mode": "aggregate_at_source_no_individual_identifiers",
         "integrated_rows": len(integration.records),
         "silver_rows": len(valid),
         "quality_errors": sum(issue.severity == "error" for issue in issues),

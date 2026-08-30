@@ -2,7 +2,7 @@
 
 Validação executada sem cloud e sem dependências externas.
 
-- 19 testes executados e aprovados, incluindo integração oficial e o handler AWS Lambda.
+- 35 testes executados e aprovados, incluindo filtros oficiais e o handler AWS Lambda.
 - 9 registros recebidos no batch.
 - 9 registros publicados na Silver.
 - 0 erro e 0 aviso de qualidade.
@@ -16,3 +16,8 @@ O manifesto JSON de execução está em `demo-output/manifests` e permite confer
 Os números acima pertencem à fixture técnica original. Os testes de integração oficial
 usam arquivos mínimos com o mesmo esquema público, em `tests/fixtures/official`, mas não
 substituem a execução final com os extratos reais em `data/official`.
+
+Os testes da extração usam um cliente BigQuery simulado para verificar dry run,
+limites de bytes e geração do manifesto. As consultas ainda precisam de validação
+no BigQuery autenticado antes da demonstração final. Nenhuma nova infraestrutura AWS
+foi criada durante esta rodada de testes.

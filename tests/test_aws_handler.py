@@ -28,6 +28,13 @@ class AwsHandlerTests(unittest.TestCase):
         self.assertEqual(result["manifest"]["status"], "success")
         self.assertEqual(result["manifest"]["integrated_rows"], 2)
         self.assertIn(b"taxa_alfabetizacao_brasil", result["silver"])
+        contents["meta_municipio"] = contents["meta_municipio"].splitlines(keepends=True)[0]
+        result = transform_official_csvs(contents)
+        self.assertEqual(result["manifest"]["municipal_input_rows"], 2)
+        self.assertEqual(result["manifest"]["municipal_excluded_rows"], 2)
+        self.assertEqual(result["manifest"]["silver_rows"], 0)
+        self.assertEqual(result["manifest"]["status"], "success_with_quarantine")
+        self.assertIn(b"municipal_target_relationship", result["quality"])
 
 
 if __name__ == "__main__":

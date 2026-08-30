@@ -61,8 +61,10 @@ python -m alfabetizacao_pipeline.cli batch-official `
   --output demo-output
 ```
 
-Os extratos oficiais não são versionados porque a tabela de alunos é volumosa. O manifesto
-registra a origem e o volume recebido de cada entidade.
+Os extratos oficiais não são versionados. Alunos são filtrados e agregados no BigQuery,
+gerando `alunos_agregados.csv`, sem identificadores individuais. O manifesto registra a
+origem, os volumes e a quantidade de municípios excluídos por inconsistências.
+Consulte o guia para estimar as consultas antes de usar `--execute`.
 
 ## Demonstração técnica local
 

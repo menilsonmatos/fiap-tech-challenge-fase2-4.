@@ -53,6 +53,9 @@ def run_official_batch(source_dir: Path, output: Path) -> dict[str, Any]:
     bronze_dir.mkdir(parents=True, exist_ok=True)
     for filename in OFFICIAL_SOURCE_FILES.values():
         shutil.copy2(source_dir / filename, bronze_dir / filename)
+    extraction_manifest = source_dir / "extraction_manifest.json"
+    if extraction_manifest.exists():
+        shutil.copy2(extraction_manifest, bronze_dir / extraction_manifest.name)
 
     integration = integrate_official_sources(read_source_rows(bronze_dir))
     issues = [*integration.issues, *validate_dataset(integration.records)]
@@ -74,6 +77,9 @@ def run_official_batch(source_dir: Path, output: Path) -> dict[str, Any]:
         "source": "Base dos Dados / INEP - br_inep_avaliacao_alfabetizacao",
         "bronze_prefix": str(bronze_dir),
         "source_rows": integration.source_rows,
+        "municipal_input_rows": integration.municipal_input_rows,
+        "municipal_excluded_rows": integration.municipal_input_rows - len(valid),
+        "students_mode": "aggregate_at_source_no_individual_identifiers",
         "integrated_rows": len(integration.records),
         "silver_rows": len(valid),
         "quality_errors": sum(i.severity == "error" for i in issues),

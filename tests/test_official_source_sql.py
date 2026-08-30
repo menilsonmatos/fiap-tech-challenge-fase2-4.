@@ -38,7 +38,15 @@ class OfficialSourceSqlTests(unittest.TestCase):
 
     def test_filters_comparable_year_and_network(self):
         self.assertGreaterEqual(QUERY.count("ano = 2024"), 6)
-        self.assertIn("LOWER(rede) LIKE '%municip%'", QUERY)
+        self.assertIn("rede = '3'", QUERY)
+        self.assertIn("rede = '5'", QUERY)
+        self.assertIn("rede = 'Municipal'", QUERY)
+        self.assertIn("rede = 'Pública'", QUERY)
+        self.assertNotIn("ROW_NUMBER", QUERY)
+
+    def test_participation_comes_from_target_table(self):
+        self.assertIn("meta_municipio.percentual_participacao", QUERY)
+        self.assertNotIn("resultado_municipio.percentual_participacao", QUERY)
 
 
 if __name__ == "__main__":

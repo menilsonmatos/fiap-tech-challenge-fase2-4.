@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,7 @@ OFFICIAL_SOURCE_FILES = {
     "meta_brasil": "meta_alfabetizacao_brasil.csv",
     "meta_uf": "meta_alfabetizacao_uf.csv",
     "meta_municipio": "meta_alfabetizacao_municipio.csv",
-    "alunos": "alunos.csv",
+    "alunos": "alunos_agregados.csv",
     "diretorio_municipio": "diretorio_municipio.csv",
 }
 
@@ -25,6 +26,7 @@ class OfficialIntegration:
     records: list[IndicatorRecord]
     issues: list[QualityIssue]
     source_rows: dict[str, int]
+    municipal_input_rows: int
 
 
 def read_source_rows(source_dir: Path) -> dict[str, list[dict[str, str]]]:
@@ -45,22 +47,29 @@ def read_source_rows(source_dir: Path) -> dict[str, list[dict[str, str]]]:
 def integrate_official_sources(
     sources: dict[str, list[dict[str, Any]]],
 ) -> OfficialIntegration:
+    municipal_rows = _network_rows(sources["municipio"], "3")
+    if not municipal_rows:
+        raise ValueError("Nenhum resultado municipal da rede 3; confira a extração")
     directories = {
-        str(row["id_municipio"]): row for row in sources["diretorio_municipio"]
+        key[0]: row for key, row in _index(
+            sources["diretorio_municipio"], "id_municipio"
+        ).items()
     }
-    municipal_targets = _index(sources["meta_municipio"], "ano", "id_municipio")
-    uf_results = _index_preferred_network(sources["uf"], "ano", "sigla_uf")
-    uf_targets = _index_preferred_network(sources["meta_uf"], "ano", "sigla_uf")
-    brazil_results = _index_preferred_network(sources["meta_brasil"], "ano")
+    municipal_targets = _index(
+        _network_rows(sources["meta_municipio"], "Municipal"), "ano", "id_municipio"
+    )
+    uf_results = _index(_network_rows(sources["uf"], "5"), "ano", "sigla_uf")
+    uf_targets = _index(_network_rows(sources["meta_uf"], "Pública"), "ano", "sigla_uf")
+    brazil_results = _index(_network_rows(sources["meta_brasil"], "Pública"), "ano")
     brazil_targets = brazil_results
     students = _student_counts(sources["alunos"])
     records: list[IndicatorRecord] = []
     issues: list[QualityIssue] = []
 
-    for row in sources["municipio"]:
-        if not _is_municipal(row.get("rede")):
-            continue
+    for row in municipal_rows:
         year = int(row["ano"])
+        if year != 2024:
+            raise ValueError("O recorte suportado é 2024; não comparar outro ano à meta 2024")
         municipality_id = str(row["id_municipio"])
         key = f"{year}:{municipality_id}"
         directory = directories.get(municipality_id)
@@ -110,6 +119,29 @@ def integrate_official_sources(
                 )
             )
             continue
+        student_key = (str(year), municipality_id)
+        if student_key not in students:
+            issues.append(QualityIssue(
+                "students_relationship", "error", key, "Município sem agregado de alunos"
+            ))
+            continue
+        try:
+            numeric_values = [
+                row["taxa_alfabetizacao"], target["meta_alfabetizacao_2024"],
+                uf_result["taxa_alfabetizacao"], uf_target["meta_alfabetizacao_2024"],
+                brazil_result["taxa_alfabetizacao"], brazil_target["meta_alfabetizacao_2024"],
+            ]
+            if any(not 0 <= _number(value) <= 100 for value in numeric_values):
+                raise ValueError("Percentual fora de 0–100")
+            participation = _optional_number(target.get("percentual_participacao"))
+            if participation is not None and not 0 <= participation <= 100:
+                raise ValueError("Participação fora de 0–100")
+        except (ValueError, TypeError, KeyError):
+            issues.append(QualityIssue(
+                "official_numeric_values", "error", key,
+                "Indicador/meta ausente, inválido ou fora de 0–100"
+            ))
+            continue
         records.append(
             IndicatorRecord(
                 ano=year,
@@ -118,7 +150,7 @@ def integrate_official_sources(
                 nome_municipio=str(directory["nome"]),
                 percentual_alfabetizado=_number(row["taxa_alfabetizacao"]),
                 meta_percentual=_number(target["meta_alfabetizacao_2024"]),
-                total_avaliados=students.get((str(year), municipality_id), 0),
+                total_avaliados=students[student_key],
                 taxa_alfabetizacao_uf=_number(uf_result["taxa_alfabetizacao"]),
                 meta_alfabetizacao_uf=_number(uf_target["meta_alfabetizacao_2024"]),
                 taxa_alfabetizacao_brasil=_number(brazil_result["taxa_alfabetizacao"]),
@@ -131,52 +163,52 @@ def integrate_official_sources(
         records=records,
         issues=issues,
         source_rows={name: len(rows) for name, rows in sources.items()},
+        municipal_input_rows=len(municipal_rows),
     )
 
 
 def _index(rows: list[dict[str, Any]], *columns: str) -> dict[tuple[str, ...], dict[str, Any]]:
-    return {tuple(str(row[column]) for column in columns): row for row in rows}
-
-
-def _index_preferred_network(
-    rows: list[dict[str, Any]], *columns: str
-) -> dict[tuple[str, ...], dict[str, Any]]:
-    result: dict[tuple[str, ...], dict[str, Any]] = {}
+    result = {}
     for row in rows:
         key = tuple(str(row[column]) for column in columns)
-        current = result.get(key)
-        if current is None or _network_priority(row.get("rede")) > _network_priority(
-            current.get("rede")
-        ):
-            result[key] = row
+        if key in result:
+            raise ValueError(f"Chave duplicada na fonte: {columns}={key}")
+        result[key] = row
     return result
 
 
 def _student_counts(rows: list[dict[str, Any]]) -> dict[tuple[str, str], int]:
-    students: dict[tuple[str, str], set[str]] = {}
+    students: dict[tuple[str, str], int] = {}
     for row in rows:
-        if str(row.get("alfabetizado", "")).strip() == "":
+        if {"id_aluno", "id_escola"} & row.keys():
+            raise ValueError("Microdados: identificadores individuais não são aceitos")
+        if not _is_municipal(row.get("rede")):
             continue
         key = (str(row["ano"]), str(row["id_municipio"]))
-        students.setdefault(key, set()).add(str(row["id_aluno"]))
-    return {key: len(ids) for key, ids in students.items()}
+        if key in students:
+            raise ValueError(f"Agregado de alunos duplicado: {key}")
+        if "total_avaliados" not in row:
+            raise ValueError("Use alunos_agregados.csv; microdados não são aceitos pela integração")
+        count = int(str(row["total_avaliados"]))
+        if count < 0:
+            raise ValueError(f"Contagem negativa de alunos: {key}")
+        students[key] = count
+    return students
 
 
 def _is_municipal(value: Any) -> bool:
-    return "municip" in str(value or "").strip().lower()
+    return str(value or "").strip() == "3"
 
 
-def _network_priority(value: Any) -> int:
-    normalized = str(value or "").strip().lower()
-    if "públic" in normalized or "public" in normalized:
-        return 3
-    if "municip" in normalized:
-        return 2
-    return 1
+def _network_rows(rows: list[dict[str, Any]], network: str) -> list[dict[str, Any]]:
+    return [row for row in rows if str(row.get("rede", "")).strip() == network]
 
 
 def _number(value: Any) -> float:
-    return float(str(value).replace(",", "."))
+    number = float(str(value).replace(",", "."))
+    if not math.isfinite(number):
+        raise ValueError("Valor não finito")
+    return number
 
 
 def _optional_number(value: Any) -> float | None:
