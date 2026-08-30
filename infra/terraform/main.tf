@@ -1,5 +1,11 @@
 data "aws_caller_identity" "current" {}
 
+# O AWS Academy Learner Lab bloqueia iam:CreateRole e fornece esta role
+# previamente configurada para os serviços usados durante o laboratório.
+data "aws_iam_role" "lab_role" {
+  name = "LabRole"
+}
+
 locals {
   prefix = "${var.project_name}-${var.environment}"
   tags = { Project = "Tech Challenge Fase 2", Environment = var.environment, ManagedBy = "Terraform" }
@@ -38,20 +44,6 @@ data "archive_file" "lambda" {
   source_dir = "${path.module}/../../src"
   output_path = "${path.module}/lambda.zip"
 }
-resource "aws_iam_role" "lambda" {
-  name = "${local.prefix}-lambda"
-  assume_role_policy = jsonencode({Version="2012-10-17",Statement=[{Action="sts:AssumeRole",Effect="Allow",Principal={Service="lambda.amazonaws.com"}}]})
-  tags = local.tags
-}
-resource "aws_iam_role_policy" "lambda" {
-  name = "${local.prefix}-least-privilege"
-  role = aws_iam_role.lambda.id
-  policy = jsonencode({Version="2012-10-17",Statement=[
-    {Effect="Allow",Action=["s3:GetObject","s3:PutObject"],Resource="${aws_s3_bucket.data.arn}/*"},
-    {Effect="Allow",Action=["kinesis:GetRecords","kinesis:GetShardIterator","kinesis:DescribeStream","kinesis:ListShards"],Resource=aws_kinesis_stream.indicators.arn},
-    {Effect="Allow",Action=["logs:CreateLogStream","logs:PutLogEvents"],Resource="arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${local.prefix}-*:*"}
-  ]})
-}
 resource "aws_cloudwatch_log_group" "batch" {
   name              = "/aws/lambda/${local.prefix}-batch"
   retention_in_days = 7
@@ -64,7 +56,7 @@ resource "aws_cloudwatch_log_group" "stream" {
 }
 resource "aws_lambda_function" "batch" {
   function_name = "${local.prefix}-batch"
-  role = aws_iam_role.lambda.arn
+  role = data.aws_iam_role.lab_role.arn
   handler = "alfabetizacao_pipeline.aws_handler.batch_handler"
   runtime = "python3.12"
   filename = data.archive_file.lambda.output_path
@@ -85,7 +77,7 @@ resource "aws_kinesis_stream" "indicators" {
 }
 resource "aws_lambda_function" "stream" {
   function_name = "${local.prefix}-stream"
-  role = aws_iam_role.lambda.arn
+  role = data.aws_iam_role.lab_role.arn
   handler = "alfabetizacao_pipeline.aws_handler.streaming_handler"
   runtime = "python3.12"
   filename = data.archive_file.lambda.output_path
