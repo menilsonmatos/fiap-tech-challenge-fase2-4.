@@ -50,7 +50,8 @@ demo-local.ps1               demonstração offline em um comando
 A extração real e a validação local foram concluídas em 30/08/2026: 5.232 municípios
 aprovados, 216 em quarentena por ausência de meta e 24 UFs na Gold.
 Veja [o relatório de validação oficial](docs/validacao-dados-oficiais.md).
-A nova demonstração AWS com esses extratos ainda está pendente.
+A demonstração AWS com esses extratos foi concluída: o batch reproduziu as contagens
+locais e o Athena confirmou os totais. Os 12 recursos do projeto foram removidos ao final.
 
 A entrada principal é o conjunto `br_inep_avaliacao_alfabetizacao`, publicado pelo INEP
 na Base dos Dados. O pipeline integra `municipio`, `uf`, `meta_alfabetizacao_brasil`,
@@ -131,8 +132,13 @@ resultados precisam de auditoria de viés por UF e porte municipal.
 ## Evidências da validação na AWS
 
 A infraestrutura foi implantada e validada no AWS Academy Learner Lab, em `us-east-1`.
-Estas capturas históricas comprovam o ciclo técnico com a fixture inicial. A validação final
-de dados deve ser refeita com os extratos oficiais antes da entrega.
+Em 30/08/2026, a execução oficial `20260830T174218Z` aprovou 5.232 municípios e
+separou 216 em quarentena. O Athena confirmou 24 UFs e 1.568.597 alunos avaliados.
+O streaming foi validado separadamente com três eventos simulados, não dados oficiais.
+Veja o [índice das evidências atuais](docs/evidencias/README.md).
+
+As capturas abaixo são históricas, da fixture inicial; não substituem as evidências
+atuais dos dados oficiais.
 
 | Etapa | Evidência |
 |---|---|

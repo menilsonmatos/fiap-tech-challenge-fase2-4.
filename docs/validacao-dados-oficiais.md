@@ -77,8 +77,40 @@ Foi executado com os extratos reais; os 35 testes automatizados também passaram
 Os dados e resultados permanecem locais, ignorados pelo Git. O relatório e o script
 são versionados, permitindo repetir a conferência sem publicar os extratos.
 
-## Pendências
+## Validação na AWS e encerramento — 30/08/2026
 
-- Executar e validar o batch oficial na AWS e consultar a nova Gold no Athena.
-- Atualizar as evidências AWS e o vídeo com os dados oficiais.
-- Não apresentar as capturas antigas da amostra sintética como validação dos dados reais.
+O batch Lambda `20260830T174218Z` recebeu os sete extratos e retornou os mesmos
+volumes locais: 5.448 entradas, 5.232 aprovados, 216 excluídos, zero avisos e
+`success_with_quarantine`. A Bronze contém sete CSVs e o manifesto da extração.
+
+Consulta executada no Athena com sucesso:
+
+```sql
+SELECT COUNT(*) AS ufs, SUM(municipios) AS municipios,
+       SUM(total_avaliados) AS alunos_avaliados
+FROM indicadores_uf;
+```
+
+Resultado: 24 UFs, 5.232 municípios e 1.568.597 alunos avaliados.
+Essa verificação confirma totais agregados; não constitui comparação linha a linha
+dos arquivos AWS com os arquivos locais.
+
+O streaming foi testado separadamente com três eventos simulados (Campinas, Fortaleza,
+Salvador), publicados no Kinesis e encontrados em dois arquivos Silver. A listagem de
+quarentena ficou vazia. O texto `INEP/atualização` no campo `fonte` desses eventos é um
+rótulo da fixture e não comprova procedência oficial. Eles não são atualizações reais
+do INEP e não devem ser usados como evidência estatística do batch oficial.
+
+Os resultados foram baixados para o notebook no ZIP `evidencias-aws-oficial.zip`.
+A captura de encerramento mostra `0 added, 0 changed, 12 destroyed`, seguida de
+`terraform state list` vazio. Isso confirma a remoção dos recursos deste estado,
+não a ausência de quaisquer recursos ou custos em toda a conta do laboratório.
+
+Consulte o [índice das capturas](evidencias/README.md). As imagens históricas da fixture
+inicial não devem ser apresentadas como a validação oficial atual.
+
+## Pendências de entrega
+
+- Ocultar e-mail/ID da conta nas capturas de infraestrutura antes de publicá-las.
+- Finalizar o vídeo com dados oficiais e identificar o streaming como simulação.
+- Revisar e integrar o PR antes de enviar o link final do projeto.

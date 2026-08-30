@@ -36,5 +36,8 @@ local. A auditoria dos arquivos locais passou. Veja o relatório completo em
 - Status do pipeline: `success_with_quarantine`; status da auditoria: `passed`.
 - 35 testes automatizados executados novamente e aprovados.
 
-A nova execução AWS com os dados oficiais ainda está pendente. As evidências anteriores
-da AWS com amostra sintética não comprovam essa etapa.
+A execução AWS oficial `20260830T174218Z` reproduziu as contagens locais. O Athena
+confirmou 24 UFs, 5.232 municípios e 1.568.597 alunos avaliados. Isso confere os totais,
+não uma comparação linha a linha entre resultados locais e AWS.
+As [evidências atuais](docs/evidencias/README.md) distinguem o batch oficial do streaming
+simulado. Os 12 recursos gerenciados foram removidos e o estado ficou vazio.
