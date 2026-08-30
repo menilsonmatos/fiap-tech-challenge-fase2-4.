@@ -111,6 +111,6 @@ inicial não devem ser apresentadas como a validação oficial atual.
 
 ## Pendências de entrega
 
-- Ocultar e-mail/ID da conta nas capturas de infraestrutura antes de publicá-las.
+- Capturas de infraestrutura revisadas com e-mail/ID da conta ocultos e incluídas no índice.
 - Finalizar o vídeo com dados oficiais e identificar o streaming como simulação.
 - Revisar e integrar o PR antes de enviar o link final do projeto.
