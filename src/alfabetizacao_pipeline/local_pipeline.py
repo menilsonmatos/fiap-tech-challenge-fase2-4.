@@ -6,6 +6,7 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from .contracts import IndicatorRecord, parse_event
 from .io_local import read_csv, read_jsonl, write_csv, write_jsonl
@@ -48,16 +49,23 @@ def run_batch(source: Path, output: Path) -> dict[str, Any]:
 
 
 def run_official_batch(source_dir: Path, output: Path) -> dict[str, Any]:
-    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S") + "-" + uuid4().hex
+    raw = (source_dir / "alunos.csv").exists()
+    if raw:
+        from .snapshots import validate_snapshot
+        validate_snapshot(source_dir)
     bronze_dir = output / "bronze" / "oficial" / f"ingestao={run_id}"
     bronze_dir.mkdir(parents=True, exist_ok=True)
     for filename in OFFICIAL_SOURCE_FILES.values():
+        if raw and filename == "alunos_agregados.csv":
+            filename = "alunos.csv"
         shutil.copy2(source_dir / filename, bronze_dir / filename)
     extraction_manifest = source_dir / "extraction_manifest.json"
     if extraction_manifest.exists():
         shutil.copy2(extraction_manifest, bronze_dir / extraction_manifest.name)
 
-    integration = integrate_official_sources(read_source_rows(bronze_dir))
+    sources = read_source_rows(bronze_dir)
+    integration = integrate_official_sources(sources)
     issues = [*integration.issues, *validate_dataset(integration.records)]
     invalid_keys = {issue.key for issue in issues if issue.severity == "error"}
     valid = [
@@ -76,10 +84,12 @@ def run_official_batch(source_dir: Path, output: Path) -> dict[str, Any]:
         "run_id": run_id,
         "source": "Base dos Dados / INEP - br_inep_avaliacao_alfabetizacao",
         "bronze_prefix": str(bronze_dir),
-        "source_rows": integration.source_rows,
+        "source_rows": {**integration.source_rows, "alunos": sum(int(r["registros_origem"]) for r in sources["alunos"])} if raw else integration.source_rows,
+        "student_aggregate_rows": len(sources["alunos"]),
         "municipal_input_rows": integration.municipal_input_rows,
         "municipal_excluded_rows": integration.municipal_input_rows - len(valid),
-        "students_mode": "aggregate_at_source_no_individual_identifiers",
+        "students_mode": "raw_bronze_aggregate_in_silver" if raw else "aggregate_at_source_no_individual_identifiers",
+        "raw_student_rows": sum(int(r["registros_origem"]) for r in sources["alunos"]) if raw else None,
         "integrated_rows": len(integration.records),
         "silver_rows": len(valid),
         "quality_errors": sum(i.severity == "error" for i in issues),
@@ -93,6 +103,10 @@ def run_official_batch(source_dir: Path, output: Path) -> dict[str, Any]:
 
 
 def simulate_stream(events_path: Path, output: Path) -> dict[str, Any]:
+    stamp = uuid4().hex
+    bronze = output / "bronze" / "stream" / f"ingestao={stamp}" / events_path.name
+    bronze.parent.mkdir(parents=True, exist_ok=False)
+    shutil.copy2(events_path, bronze)
     accepted: list[IndicatorRecord] = []
     rejected: list[dict[str, Any]] = []
     for event in read_jsonl(events_path):
@@ -101,7 +115,7 @@ def simulate_stream(events_path: Path, output: Path) -> dict[str, Any]:
         except (TypeError, ValueError) as exc:
             rejected.append({"event": event, "error": str(exc)})
 
-    write_jsonl(output / "bronze" / "stream" / "events.jsonl", read_jsonl(events_path))
+    # A cópia original já está preservada acima, antes do parsing.
     write_jsonl(output / "silver" / "stream_updates.jsonl", (r.to_dict() for r in accepted))
     write_jsonl(output / "quarantine" / "stream_rejected.jsonl", rejected)
     return {"accepted": len(accepted), "rejected": len(rejected)}

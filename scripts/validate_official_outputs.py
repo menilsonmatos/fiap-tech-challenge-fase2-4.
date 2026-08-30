@@ -25,8 +25,12 @@ def main():
     extraction = json.loads((args.source_dir / "extraction_manifest.json").read_text(encoding="utf-8"))
     for info in extraction["files"].values():
         path = args.source_dir / info["filename"]
-        check(hashlib.sha256(path.read_bytes()).hexdigest() == info["sha256"], f"Hash divergente: {path}")
-        check(len(read_csv(path)) == info["rows"], f"Contagem divergente: {path}")
+        with path.open("rb") as handle:
+            digest = hashlib.file_digest(handle, "sha256").hexdigest()
+        check(digest == info["sha256"], f"Hash divergente: {path}")
+        with path.open(encoding="utf-8-sig", newline="") as handle:
+            count = sum(1 for _ in csv.DictReader(handle))
+        check(count == info["rows"], f"Contagem divergente: {path}")
 
     silver = read_csv(args.output / "silver/indicadores_oficiais.csv")
     gold = read_csv(args.output / "gold/indicadores_uf.csv")

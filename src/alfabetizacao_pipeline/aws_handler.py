@@ -5,12 +5,17 @@ import csv
 import io
 import json
 import os
+import re
+import tempfile
+from pathlib import Path
+from uuid import uuid4
 from datetime import datetime, timezone
 from typing import Any
 
 from .contracts import parse_event, parse_record
-from .quality import validate_dataset
-from .official_sources import OFFICIAL_SOURCE_FILES, integrate_official_sources
+from .quality import validate_dataset, validate_record
+from .official_sources import OFFICIAL_SOURCE_FILES, integrate_official_sources, read_source_rows
+from .snapshots import RAW_FILES, file_hash, validate_snapshot
 from .transforms import aggregate_by_uf, deduplicate, vulnerability_ranking
 
 
@@ -96,20 +101,34 @@ def batch_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
 
     bucket = event.get("bucket") or os.environ["DATA_BUCKET"]
     s3 = boto3.client("s3")
+    source_pointer = None
     if event.get("mode", "official") == "official":
-        source_keys = event.get("source_keys") or {
-            name: f"bronze/oficial/{filename}"
-            for name, filename in OFFICIAL_SOURCE_FILES.items()
-        }
-        contents = {
-            name: s3.get_object(Bucket=bucket, Key=key)["Body"].read()
-            for name, key in source_keys.items()
-        }
-        transformed = transform_official_csvs(contents)
+        source_pointer = event.get("snapshot") or json.loads(
+            s3.get_object(Bucket=bucket, Key="control/latest_official.json")["Body"].read())
+        prefix = source_pointer["prefix"]
+        if not re.fullmatch(r"bronze/oficial/ingestao=[a-f0-9]{32}", prefix):
+            raise ValueError("Prefixo de snapshot inválido")
+        with tempfile.TemporaryDirectory(prefix="fiap-batch-") as directory:
+            source = Path(directory)
+            for name in (*RAW_FILES, "extraction_manifest.json"):
+                s3.download_file(bucket, f"{prefix}/{name}", str(source / name))
+            if file_hash(source / "extraction_manifest.json") != source_pointer["manifest_sha256"]:
+                raise ValueError("Manifesto do snapshot divergente")
+            validate_snapshot(source)
+            sources = read_source_rows(source)
+            transformed = transform_official_csvs({name: _csv_bytes(rows) for name, rows in sources.items()})
+            transformed["manifest"]["students_mode"] = "raw_bronze_aggregate_in_silver"
+            transformed["manifest"]["source_rows"]["alunos"] = sum(int(r["registros_origem"]) for r in sources["alunos"])
+            transformed["manifest"]["student_aggregate_rows"] = len(sources["alunos"])
+            transformed["manifest"]["snapshot"] = source_pointer
     else:
         source_key = event.get("source_key", "bronze/indicador_alfabetizacao.csv")
         transformed = transform_csv(s3.get_object(Bucket=bucket, Key=source_key)["Body"].read())
-    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S") + "-" + uuid4().hex
+    transformed["manifest"]["run_id"] = run_id
+    if transformed["manifest"]["silver_rows"] == 0:
+        s3.put_object(Bucket=bucket, Key=f"quarantine/quality_issues_{run_id}.jsonl", Body=transformed["quality"])
+        raise ValueError("Nenhum município aprovado; Gold anterior preservada")
     outputs = {
         "silver/indicadores.csv": transformed["silver"],
         "gold/indicadores_uf/data.csv": transformed["gold_uf"],
@@ -119,6 +138,9 @@ def batch_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             transformed["manifest"], ensure_ascii=False
         ).encode(),
     }
+    # Histórico do resultado por execução; os caminhos atuais abaixo são apenas projeções.
+    for key, body in outputs.items():
+        s3.put_object(Bucket=bucket, Key=f"runs/{run_id}/{key}", Body=body)
     for key, body in outputs.items():
         s3.put_object(Bucket=bucket, Key=key, Body=body)
     return {**transformed["manifest"], "bucket": bucket, "run_id": run_id}
@@ -129,15 +151,24 @@ def streaming_handler(event: dict[str, Any], _context: Any) -> dict[str, int]:
 
     bucket = os.environ["DATA_BUCKET"]
     s3 = boto3.client("s3")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S") + "-" + uuid4().hex
+    # Persistir o envelope original (incluindo base64 e metadados) antes de tratar.
+    s3.put_object(Bucket=bucket, Key=f"bronze/stream/ingestao={stamp}/event.json",
+                  Body=json.dumps(event, ensure_ascii=False).encode())
     accepted: list[dict[str, Any]] = []
     rejected: list[dict[str, Any]] = []
     for item in event.get("Records", []):
         try:
             payload = json.loads(base64.b64decode(item["kinesis"]["data"]))
-            accepted.append(parse_event(payload).to_dict())
+            if not isinstance(payload, dict):
+                raise ValueError("Evento precisa ser um objeto JSON")
+            record = parse_event(payload)
+            errors = [issue for issue in validate_record(record) if issue.severity == "error"]
+            if errors:
+                raise ValueError("; ".join(issue.rule for issue in errors))
+            accepted.append(record.to_dict())
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             rejected.append({"error": str(exc), "record": item})
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     if accepted:
         s3.put_object(
             Bucket=bucket,

@@ -1,127 +1,90 @@
-# Extração e integração dos dados oficiais
+# Dados oficiais: Bronze bruta e integração Silver
 
-## Fonte
+## Fonte e recorte
 
-O projeto utiliza `basedosdados.br_inep_avaliacao_alfabetizacao`, publicado pelo INEP na
-Base dos Dados. A integração cobre as entidades exigidas pelo Tech Challenge:
+Fonte: `basedosdados.br_inep_avaliacao_alfabetizacao`, INEP / Base dos Dados.
+O recorte suportado é 2024, comparado à coluna `meta_alfabetizacao_2024`.
 
-| Entidade | Tabela BigQuery | Chave usada |
-|---|---|---|
-| UF | `uf` | `ano`, `sigla_uf` |
-| Meta Brasil | `meta_alfabetizacao_brasil` | `ano` |
-| Meta por UF | `meta_alfabetizacao_uf` | `ano`, `sigla_uf` |
-| Meta por município | `meta_alfabetizacao_municipio` | `ano`, `id_municipio` |
-| Município | `municipio` | `ano`, `id_municipio` |
-| Alunos | `alunos` | `ano`, `id_municipio`, `id_escola`, `id_aluno` |
-
-O diretório `br_bd_diretorios_brasil.municipio` complementa nome do município e UF.
-
-## Recorte e redes confirmados no BigQuery
-
-O recorte suportado é **2024**, comparado à coluna `meta_alfabetizacao_2024`.
-Não há seleção automática de outra rede quando falta um resultado.
-
-| Fonte | Filtro exato |
+| Entidade | Filtro |
 |---|---|
-| `municipio` e `alunos` | `rede = '3'` (Municipal) |
-| `uf` | `rede = '5'` (Pública: Estadual e Municipal) |
+| `municipio`, `alunos` | `rede = '3'` (Municipal) |
+| `uf` | `rede = '5'` (Estadual e Municipal, sem Federal) |
 | `meta_alfabetizacao_municipio` | `rede = 'Municipal'` |
-| `meta_alfabetizacao_uf` e `meta_alfabetizacao_brasil` | `rede = 'Pública'` |
+| `meta_alfabetizacao_uf`, `meta_alfabetizacao_brasil` | `rede = 'Pública'` |
 
-A rede `5` não inclui a federal; a rede `6` inclui. Não são intercambiáveis.
-Os filtros foram confirmados no dicionário oficial retornado pelo BigQuery.
-`percentual_participacao` vem da tabela de metas municipais, não de `municipio`.
+O diretório `br_bd_diretorios_brasil.municipio` fornece nome e UF. Não há troca automática
+de rede para preencher lacunas. Participação vem da tabela de metas municipais.
 
-### Alunos: agregação antes da transferência
+## Extração bruta e privacidade
 
-`alunos_agregados.csv` substitui o antigo `alunos.csv`. A consulta seleciona rede `3`,
-presença `1`, prova preenchida `1` e `alfabetizado IN ('0', '1')`. Conta pares distintos
-`(id_escola, id_aluno)` com identificadores não vazios por ano e município; alunos não
-alfabetizados também são contados entre os avaliados. Os identificadores são usados
-somente dentro do BigQuery e não são exportados.
+As seis entidades são exportadas com `SELECT *`, apenas com filtros de ano/rede.
+`alunos.csv` preserva as linhas e colunas originais do recorte, inclusive alunos ausentes
+e identificadores de escola/aluno. Não há agregação, deduplicação ou limpeza antes da Bronze.
+O diretório auxiliar é selecionado pelos municípios do recorte.
 
-O agregado inclui contagens de registros originais, avaliações válidas/inválidas e
-identificadores ausentes. Não é uma cópia de microdados brutos: é uma redução na origem
-por privacidade e uso de memória. A Bronze preserva esse extrato agregado como recebido;
-os outros extratos preservam suas colunas originais, com filtro de ano/rede.
+Esses microdados são privados no fluxo de trabalho: nunca publicar CSV/ZIP no GitHub,
+compartilhar em capturas ou incluí-los no vídeo. Use o diretório ignorado `data/official-raw`
+e o bucket privado do laboratório. Não use `git add -f`. O manifesto guarda consultas,
+contagens, hashes e IDs de jobs, mas não valores individuais dos alunos.
 
-Preservar o conteúdo do extrato não significa armazenamento imutável. Localmente são
-criadas cópias por ingestão; na AWS, o upload usa chaves fixas em `bronze/oficial/` e pode
-substituir arquivos anteriores. Não há versionamento habilitado no bucket. Conserve os
-pacotes de extração e consulte o [runbook](runbook.md) antes de substituir dados.
+O pacote antigo `dados-oficiais-2024.zip` contém alunos agregados e não atende à nova
+Bronze bruta. Ele permanece como evidência da versão anterior; não foi apagado nem alterado.
 
-O total de avaliados é uma contagem, não a soma dos pesos amostrais. A média municipal
-ponderada produzida na Gold é um indicador analítico do recorte, não uma reprodução do
-ICA oficial da UF. O resultado publicado da UF é mantido em campo separado na Silver
-e no ranking, sem ser substituído pela média calculada.
+## Estimativa e extração no notebook
 
-## Pré-requisitos
+Na raiz do projeto, com Python, biblioteca BigQuery e autenticação ADC:
 
-É necessário um projeto GCP habilitado para executar consultas no BigQuery. O projeto é
-informado explicitamente e será o responsável por eventual processamento faturável.
-Consulte a estimativa de bytes no BigQuery antes de confirmar a consulta.
-
-```bash
+```powershell
 python -m pip install -e ".[gcp]"
 gcloud auth application-default login
+python scripts/extract_official_data.py --billing-project SEU_PROJETO_GCP --year 2024 --output data/official-raw
 ```
 
-## Estimar antes de extrair
+O padrão é somente dry run, com limite de 1 GiB por consulta. A consulta bruta pode
+ler mais bytes que a agregada antiga. Revise a nova estimativa: não aumente o limite
+automaticamente nem use os 193 MB da versão anterior como previsão da nova extração.
 
-```bash
-python scripts/extract_official_data.py \
-  --billing-project SEU_PROJETO_GCP \
-  --year 2024 \
-  --output data/official
+Após revisão explícita, acrescente `--execute`. O destino precisa estar vazio.
+O manifesto só é gravado quando as sete consultas terminam. Uma extração incompleta
+não pode ser empacotada/publicada como snapshot válido. Não é preciso ligar a AWS.
+
+## Processamento após a Bronze
+
+```powershell
+python -m alfabetizacao_pipeline.cli batch-official --source-dir data/official-raw --output work-validation-raw
+python scripts/validate_official_outputs.py --source-dir data/official-raw --output work-validation-raw
 ```
 
-Sem `--execute`, o script apenas valida/estima as sete consultas (dry run). Confira os
-bytes exibidos. Cada consulta tem limite padrão de 1 GiB; o script não aumenta o limite
-sozinho. Para extrair após a revisão, repita o comando acrescentando `--execute`:
+O processo local primeiro copia os extratos para `bronze/oficial/ingestao=<id>/`.
+Na AWS, eles já estão no snapshot Bronze privado antes da invocação da Lambda.
+Somente então o processamento de alunos:
 
-```bash
-python scripts/extract_official_data.py \
-  --billing-project SEU_PROJETO_GCP \
-  --year 2024 \
-  --output data/official \
-  --execute
-```
+1. Lê o CSV sequencialmente, sem carregar todos os alunos na RAM.
+2. Seleciona presença `1`, caderno preenchido `1` e alfabetizado `0` ou `1`.
+3. Conta pares distintos `(id_escola, id_aluno)` não vazios por ano/município,
+   usando SQLite temporário em disco; exclui os temporários ao terminar.
+4. Integra apenas as contagens aos resultados/metas. Silver/Gold não carregam IDs individuais.
 
-O destino precisa estar vazio, evitando misturar versões ou reutilizar arquivos de uma
-tentativa incompleta. `extraction_manifest.json` registra consultas, contagens, hashes
-SHA-256, data e IDs dos jobs. Esse manifesto é criado somente ao concluir as sete extrações.
+Os contadores distinguem registros originais, avaliações válidas/inválidas e IDs ausentes.
+`source_rows.alunos` passa a contar linhas brutas; `student_aggregate_rows` informa grupos
+municipais. A implementação preserva o algoritmo elegível da versão anterior, mas o
+volume real e sua equivalência precisam ser confirmados após a nova extração.
 
-O diretório `data/official` é ignorado pelo Git. Não publique microdados ou identificadores
-de alunos no repositório. A Silver contém somente agregações municipais.
+## Qualidade, limites e interpretação
 
-## Processar localmente
+Chaves duplicadas de referência, fonte vazia ou recorte errado interrompem a integração.
+Metas/resultados ausentes, percentuais inválidos e relações faltantes são registrados
+na quarentena por município. A reconciliação esperada é entrada = Silver + excluídos.
+O batch AWS não substitui a Gold anterior quando nenhum município é aprovado.
 
-```bash
-python -m alfabetizacao_pipeline.cli batch-official \
-  --source-dir data/official \
-  --output demo-output
-```
+Na demonstração anterior, 5.448 entradas resultaram em 5.232 aprovados e 216 excluídos:
+96 sem registro de meta, 120 com meta de 2024 vazia. Esses números são referência de
+regressão, não evidência de que a nova versão já foi executada na nuvem.
 
-Verifique no manifesto:
+A média ponderada por alunos avaliados não reproduz a ponderação amostral do ICA oficial
+da UF. Os indicadores oficiais da rede pública são mantidos separadamente na Silver/ranking.
+As análises descrevem somente o recorte com dados completos, não todo o Brasil.
 
-- `source` apontando para INEP / Base dos Dados;
-- todas as entidades em `source_rows`;
-- `integrated_rows` e `silver_rows` maiores que zero;
-- `municipal_input_rows = silver_rows + municipal_excluded_rows`;
-- revisão das ocorrências em `quarantine/official_quality_issues.jsonl`.
-
-Ausência de meta, UF ou agregado de alunos gera ocorrência identificada por ano/município
-e exclui o registro da Gold. Um indicador nulo ou inválido também vai à quarentena. Uma
-seleção municipal vazia ou agregados duplicados interrompem o processamento, sem sucesso
-falso. O status pode ser `success_with_quarantine` quando a cobertura oficial difere.
-As contagens 5.448 resultados e 5.352 metas de 2024 não provam, sozinhas, quais IDs faltam:
-é a junção e seu relatório de qualidade que identificam as diferenças.
-
-## Controles implementados
-
-- cópia sem nova transformação dos extratos (incluindo alunos já agregados) para a Bronze;
-- integridade município-diretório, município-meta e UF-meta;
-- contagem distinta de pares escola/aluno elegíveis na origem, agregada por município;
-- validação de duplicidades, nulos, códigos IBGE, UF e intervalos percentuais;
-- quarentena para relações ausentes ou valores inválidos;
-- Gold com resultado versus meta e comparativos municipal, estadual e nacional.
+O modo local legado aceita `alunos_agregados.csv` para auditar os artefatos antigos.
+Extração, pacote e upload novos exigem `alunos.csv` bruto. Consulte
+[transferência e snapshots](transferencia-dados-oficiais.md).

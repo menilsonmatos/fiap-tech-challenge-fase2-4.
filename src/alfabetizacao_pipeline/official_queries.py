@@ -1,13 +1,13 @@
 """Consultas de extração alinhadas ao dicionário da Base dos Dados.
 
-Não executa consultas ao importar. Os alunos são agregados na origem: nenhum
-identificador individual é exportado ao notebook, S3 ou Lambda.
+Não executa consultas ao importar. O padrão preserva os alunos brutos do recorte.
+O modo agregado é mantido apenas como referência da demonstração anterior.
 """
 
 DATASET = "basedosdados.br_inep_avaliacao_alfabetizacao"
 
 
-def extraction_queries(year: int = 2024) -> dict[str, str]:
+def extraction_queries(year: int = 2024, *, raw_students: bool = True) -> dict[str, str]:
     if year != 2024:
         raise ValueError("O recorte validado deste pipeline é 2024")
     filters = {
@@ -42,6 +42,9 @@ SELECT ano, id_municipio, rede,
 FROM selecionados
 GROUP BY ano, id_municipio, rede
 """
+    if raw_students:
+        del queries["alunos_agregados"]
+        queries["alunos"] = f"SELECT * FROM `{DATASET}.alunos` WHERE ano = {year} AND rede = '3'"
     queries["diretorio_municipio"] = f"""
 SELECT DISTINCT d.id_municipio, d.nome, d.sigla_uf
 FROM `basedosdados.br_bd_diretorios_brasil.municipio` AS d

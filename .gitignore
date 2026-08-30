@@ -13,6 +13,9 @@ data/silver/
 data/gold/
 data/quarantine/
 data/official/
+data/official-*/
+**/alunos.csv
+!tests/fixtures/**/alunos.csv
 dist/
 build/
 *.egg-info/

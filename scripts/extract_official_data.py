@@ -2,19 +2,19 @@ from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 
 from alfabetizacao_pipeline.official_queries import extraction_queries
+from alfabetizacao_pipeline.snapshots import file_hash
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Extrai as fontes oficiais da Base dos Dados")
     parser.add_argument("--billing-project", required=True, help="Projeto GCP usado pelo BigQuery")
     parser.add_argument("--year", type=int, choices=[2024], default=2024)
-    parser.add_argument("--output", type=Path, default=Path("data/official"))
+    parser.add_argument("--output", type=Path, default=Path("data/official-raw"))
     parser.add_argument("--execute", action="store_true", help="Executa após estimar todas as consultas")
     parser.add_argument("--maximum-bytes-billed", type=int, default=1073741824)
     args = parser.parse_args()
@@ -49,7 +49,7 @@ def main() -> None:
         "source": "basedosdados.br_inep_avaliacao_alfabetizacao",
         "extracted_at": datetime.now(timezone.utc).isoformat(),
         "year": args.year,
-        "students_mode": "aggregate_at_source_no_individual_identifiers",
+        "students_mode": "raw_bronze_aggregate_in_silver",
         "files": {},
     }
     for name, query in queries.items():
@@ -74,7 +74,7 @@ def _write_query(client: object, query: str, output: Path, config: object) -> di
     return {
         "filename": output.name,
         "rows": rows.total_rows,
-        "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+        "sha256": file_hash(output),
         "query": query,
         "job_id": job.job_id,
         "bytes_processed": job.total_bytes_processed,

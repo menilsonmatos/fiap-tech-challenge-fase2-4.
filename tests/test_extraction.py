@@ -60,8 +60,9 @@ class ExtractionTests(unittest.TestCase):
             self.assertEqual(client.query.call_count, 14)
             manifest = json.loads((output / "extraction_manifest.json").read_text())
             self.assertEqual(len(manifest["files"]), 7)
-            self.assertTrue((output / "alunos_agregados.csv").exists())
-            self.assertFalse((output / "alunos.csv").exists())
+            self.assertFalse((output / "alunos_agregados.csv").exists())
+            self.assertTrue((output / "alunos.csv").exists())
+            self.assertEqual(manifest["students_mode"], "raw_bronze_aggregate_in_silver")
             for item in manifest["files"].values():
                 self.assertEqual(len(item["sha256"]), 64)
                 self.assertTrue(item["query"])

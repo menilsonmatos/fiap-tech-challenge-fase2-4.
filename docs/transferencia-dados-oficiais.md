@@ -1,54 +1,31 @@
-# Pacote local para transferência à AWS
+# Transferência privada e snapshots completos
 
-Pacote preparado em 30/08/2026: `dist/dados-oficiais-2024.zip`.
-Tamanho: 353.733 bytes. Contém somente sete CSVs e `extraction_manifest.json`,
-sob o diretório `data/official/`. Não contém código, credenciais, Terraform state
-nem identificadores individuais nas colunas dos CSVs.
+## Preparar no notebook
 
-SHA-256 do pacote preparado:
-
-```text
-8aa1d2c8379bb285d0ce06afc34fb42540b0896aa64037e428472462aa9d032f
-```
-
-Foram conferidos os hashes e contagens dos CSVs contra o manifesto, os cabeçalhos
-e a integridade de cada arquivo dentro do ZIP. A pasta `dist/` é ignorada pelo Git.
-O pacote ainda não foi enviado à AWS.
-
-## Recriar localmente
-
-Na raiz do projeto, no PowerShell:
+Depois da nova extração bruta completa e validação local:
 
 ```powershell
-python scripts/package_official_sources.py --output dist/dados-oficiais-2024-novo.zip
+python scripts/package_official_sources.py --source-dir data/official-raw --output dist/dados-oficiais-brutos-2024.zip
 ```
 
-O script recusa sobrescrever arquivos existentes. Um novo ZIP pode ter outro hash
-por causa dos metadados da compactação; use o hash exibido para aquele pacote.
+O script verifica hashes e contagens contra `extraction_manifest.json` e inclui exatamente
+sete CSVs e o manifesto. O ZIP contém microdados de alunos: manter privado, fora do Git.
+O script imprime tamanho e SHA-256; guardar esse hash para conferir a transferência.
+Não sobrescreve pacotes existentes. O antigo ZIP agregado não pode ser reutilizado.
 
-## Após transferir o ZIP para o CloudShell
+## Transferir ao CloudShell
 
-Os comandos abaixo pressupõem o arquivo em `$HOME/dados-oficiais-2024.zip` e a cópia
-do projeto em `$HOME/projeto-fiap`. Confira esses caminhos antes de continuar.
-Na cópia do projeto, use a versão da branch `feature/integracao-dados-oficiais`
-ou a versão correspondente já integrada à principal. Não descarte mudanças locais.
+Faça upload manual pelo menu Actions do CloudShell. Na sessão, confira o hash e extraia
+em diretório novo. Não publique o pacote em links públicos.
 
 ```bash
-sha256sum "$HOME/dados-oficiais-2024.zip"
-unzip -l "$HOME/dados-oficiais-2024.zip"
+sha256sum "$HOME/dados-oficiais-brutos-2024.zip"
+TRANSFER_DIR=$(mktemp -d "$HOME/fiap-bruto-XXXXXX")
+unzip "$HOME/dados-oficiais-brutos-2024.zip" -d "$TRANSFER_DIR"
 ```
 
-Compare o hash com o informado acima. Devem existir exatamente oito arquivos sob
-`data/official/`. Se hash ou conteúdo diferirem, pare e confira a transferência.
-
-Para não misturar extrações antigas, descompacte em um diretório temporário novo:
-
-```bash
-TRANSFER_DIR=$(mktemp -d "$HOME/fiap-oficial-XXXXXX")
-unzip "$HOME/dados-oficiais-2024.zip" -d "$TRANSFER_DIR"
-```
-
-Somente depois da implantação e confirmação do bucket do projeto, na raiz do repositório:
+O hash deve ser igual ao impresso no notebook. Após implantar a infraestrutura e confirmar
+o bucket, na raiz da cópia atualizada do projeto:
 
 ```bash
 cd "$HOME/projeto-fiap"
@@ -56,6 +33,22 @@ BUCKET=$(terraform -chdir=infra/terraform output -raw data_bucket)
 PYTHONPATH=src python3 scripts/upload_official_sources.py --bucket "$BUCKET" --source-dir "$TRANSFER_DIR/data/official"
 ```
 
-Esse último comando escreve no S3 e substitui objetos existentes em `bronze/oficial/`.
-Ele deve ser executado apenas no bucket confirmado do projeto. A extração no BigQuery
-não precisa ser repetida. Continue pelo guia de [implantação AWS](implantacao-aws.md).
+## Protocolo de publicação
+
+- Cada upload usa `bronze/oficial/ingestao=<uuid>/`, nunca substitui a ingestão anterior.
+- Hashes e contagens são conferidos antes da transferência.
+- Somente após os oito arquivos serem enviados, o script grava `control/latest_official.json`.
+- Esse ponteiro contém o prefixo e o hash do manifesto. Uma falha parcial não publica
+  o conjunto incompleto; os objetos parciais permanecem, sem serem consumidos pelo batch.
+- A Lambda resolve o ponteiro uma única vez e confere novamente o manifesto e os CSVs.
+  Assim, trocar o ponteiro durante uma execução não mistura duas extrações.
+- O bucket tem versionamento. Preserva alterações do ponteiro e projeções Silver/Gold;
+  não há Object Lock e `terraform destroy` continua sendo destrutivo.
+
+O batch manual e mensal usam o último snapshot publicado. Para reprocessar um snapshot
+anterior, a Lambda aceita `snapshot` com `prefix` e `manifest_sha256` conhecidos do
+registro daquela ingestão. Não alterar os arquivos antigos para simular uma nova fonte.
+
+Antes de destruir a infraestrutura, baixe todo o histórico necessário: `bronze/`,
+`control/`, `runs/`, `manifests/`, `quarantine/`, Silver e Gold. Esses backups da Bronze
+agora contêm microdados e não devem ser incluídos no repositório público.
