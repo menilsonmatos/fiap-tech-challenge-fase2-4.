@@ -1,5 +1,9 @@
 # Evidência de validação local
 
+As evidências abaixo pertencem à versão anterior. A revisão para histórico Bronze,
+alunos brutos e batch mensal está descrita em [aderência obrigatória](docs/aderencia-obrigatoria.md).
+As capturas AWS antigas não validam as novas funcionalidades.
+
 ## Validação técnica com fixtures
 
 Testes executados localmente, sem consultar serviços de nuvem.

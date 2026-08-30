@@ -14,7 +14,7 @@ class OfficialQueriesTests(unittest.TestCase):
             self.assertIn("rede = 'Pública'", queries[table])
 
     def test_student_eligibility_and_composite_identity(self):
-        query = extraction_queries()["alunos_agregados"]
+        query = extraction_queries(raw_students=False)["alunos_agregados"]
         self.assertTrue(query.startswith("WITH"))
         for predicate in (
             "rede = '3'", "presenca = '1'", "preenchimento_caderno = '1'",
@@ -24,10 +24,15 @@ class OfficialQueriesTests(unittest.TestCase):
             self.assertIn(predicate, query)
 
     def test_aggregated_output_does_not_group_by_student(self):
-        query = extraction_queries()["alunos_agregados"]
+        query = extraction_queries(raw_students=False)["alunos_agregados"]
         self.assertTrue(query.strip().endswith("GROUP BY ano, id_municipio, rede"))
-        self.assertNotIn("alunos", extraction_queries())
+        self.assertNotIn("alunos", extraction_queries(raw_students=False))
         self.assertIn("AS total_avaliados", query)
+
+    def test_default_preserves_raw_student_columns_and_rows(self):
+        queries = extraction_queries()
+        self.assertEqual(queries["alunos"], "SELECT * FROM `basedosdados.br_inep_avaliacao_alfabetizacao.alunos` WHERE ano = 2024 AND rede = '3'")
+        self.assertNotIn("alunos_agregados", queries)
 
     def test_year_is_not_silently_compared_with_2024_target(self):
         with self.assertRaises(ValueError):

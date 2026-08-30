@@ -1,5 +1,10 @@
 # Validação dos extratos oficiais e da Gold
 
+> Registro histórico da versão com alunos agregados na origem. A revisão de Bronze
+> bruta, versionamento e agendamento ainda precisa de nova execução AWS. Consulte
+> [aderência aos requisitos](aderencia-obrigatoria.md); não substituir estes resultados
+> pelos da nova versão sem executar e conferir novamente.
+
 ## Identificação e escopo
 
 Fonte: Base dos Dados / INEP, `br_inep_avaliacao_alfabetizacao`.

@@ -8,6 +8,14 @@ cloud usa o AWS Academy Learner Lab na região `us-east-1`.
 
 ## Objetivo
 
+O Indicador Criança Alfabetizada mede a proporção de estudantes que atingem o nível
+de alfabetização esperado ao final do 2º ano do ensino fundamental. No contexto do
+Compromisso Nacional Criança Alfabetizada, integrar resultados e metas permite identificar
+diferenças territoriais e apoiar prioridades de acompanhamento educacional. O projeto
+organiza essas informações para gestores públicos; não explica causalmente o desempenho
+nem substitui avaliações pedagógicas. Usa o recorte municipal de 2024, com referências
+publicadas para UF e Brasil.
+
 A camada Gold responde quais UFs e municípios estão abaixo da meta, calcula o indicador
 ponderado pelos alunos avaliados e prioriza municípios pelo déficit educacional. O ranking
 apoia análise e não representa diagnóstico causal ou decisão automatizada.
@@ -16,24 +24,37 @@ apoia análise e não representa diagnóstico causal ou decisão automatizada.
 
 ```mermaid
 flowchart LR
-  BD[INEP / Base dos Dados] --> B[S3 Bronze]
-  B --> LB[Lambda batch] --> S[S3 Silver]
-  S --> G[S3 Gold]
-  EV[Eventos simulados] --> K[Kinesis] --> LS[Lambda streaming] --> S
-  S --> GC[Glue Data Catalog] --> A[Athena]
+  BD[INEP / Base dos Dados - BigQuery] --> EX[Extracao bruta e upload]
+  EX --> B[S3 Bronze - snapshots privados]
+  M[EventBridge mensal - desativado por padrao] --> LB[Lambda batch]
+  B --> LB --> S[Silver batch - agregacao e integracao]
+  LB --> G[S3 Gold]
+  EV[Eventos simulados] --> K[Kinesis] --> LS[Lambda streaming]
+  LS --> BS[Bronze streaming - envelope original]
+  BS --> SS[Silver streaming e quarentena]
+  G --> GC[Glue Data Catalog - indicadores_uf] --> A[Athena]
   LB -. logs .-> CW[CloudWatch]
   LS -. logs .-> CW
 ```
 
 | Camada | Conteúdo |
 |---|---|
-| Bronze | Extratos de entrada; cópias por ingestão localmente e chaves fixas substituíveis na AWS |
+| Bronze | Extratos brutos por ingestão e envelopes originais de streaming; bucket versionado |
 | Silver | registros tipados, validados, deduplicados e em quarentena quando inválidos |
 | Gold | indicadores ponderados por UF e ranking municipal de vulnerabilidade |
 
-O extrato de alunos já chega agregado do BigQuery. O bucket AWS não possui versionamento;
-novos uploads podem substituir a Bronze, e o batch substitui os CSVs Silver/Gold.
-As limitações e a recuperação por backup estão no [runbook](docs/runbook.md).
+Alunos chegam sem agregação do BigQuery; a contagem elegível/deduplicada é calculada
+depois da Bronze, com SQLite temporário em disco. Somente agregados chegam à Silver/Gold.
+Cada upload cria um snapshot próprio e publica seu ponteiro apenas após concluir todos
+os arquivos. Os resultados batch também são preservados por execução. Os caminhos
+Silver/Gold consultados atualmente pelo Athena são projeções substituíveis.
+O versionamento protege substituições, mas não é Object Lock nem proteção contra um
+administrador ou `terraform destroy`. Consulte o [runbook](docs/runbook.md).
+
+**Status desta revisão:** Bronze bruta e histórico validados na AWS em 30/08/2026.
+O batch processou 1.840.277 linhas brutas e o Athena confirmou 5.232 municípios.
+A regra mensal foi criada e inspecionada desativada; não houve disparo agendado.
+Veja o [relatório da validação bruta](docs/validacao-bruta-aws.md).
 
 ## Estrutura
 
@@ -67,12 +88,15 @@ Após extrair as fontes conforme [docs/dados-oficiais.md](docs/dados-oficiais.md
 ```powershell
 $env:PYTHONPATH = "src"
 python -m alfabetizacao_pipeline.cli batch-official `
-  --source-dir data/official `
-  --output demo-output
+  --source-dir data/official-raw `
+  --output work-validation-raw
 ```
 
-Os extratos oficiais não são versionados. Alunos são filtrados e agregados no BigQuery,
-gerando `alunos_agregados.csv`, sem identificadores individuais. O manifesto registra a
+Os extratos oficiais não são publicados no Git. A extração padrão preserva `alunos.csv`
+bruto (recorte 2024/rede municipal), inclusive colunas originais. Mantenha os microdados
+somente no notebook e na Bronze privada; não envie o ZIP a um repositório público.
+O modo agregado antigo continua legível localmente para comparação histórica, mas é
+recusado no novo upload AWS. O manifesto registra a
 origem, os volumes e a quantidade de municípios excluídos por inconsistências.
 Consulte o guia para estimar as consultas antes de usar `--execute`.
 
@@ -113,7 +137,7 @@ de referência está em `sql/00_source_basedosdados.sql`. O adaptador devolve o 
 
 ## Qualidade e segurança
 
-- chave natural `(ano, id_municipio)` e prevalência da versão mais recente;
+- chave natural `(ano, id_municipio)`; duplicidades no conjunto são erros de qualidade;
 - percentuais entre 0 e 100, UF válida e código IBGE com sete dígitos;
 - registros inválidos enviados à quarentena sem descarte silencioso;
 - S3 privado, criptografia AES-256 e bloqueio de acesso público;
@@ -127,6 +151,25 @@ O desenho evita clusters e recursos ociosos. Lambda cobra por invocação/duraç
 usa apenas um shard durante a demonstração; logs ficam sete dias; e o Athena limita cada
 consulta a 1 GiB lido. Consulte [docs/finops.md](docs/finops.md).
 
+O batch mensal usa uma regra EventBridge no dia 1 às 06:00 UTC, desativada por padrão.
+Ela processa o último snapshot completo já transferido; a extração autenticada do
+BigQuery continua sendo uma etapa manual. Não há credencial GCP dentro da Lambda.
+
+## Escolhas e trade-offs
+
+- **Batch vs streaming:** batch integra o recorte histórico completo; streaming demonstra
+  chegada quase imediata de eventos simulados e fica separado da Gold oficial.
+- **Lake vs warehouse:** S3 guarda arquivos e histórico; Glue cataloga a Gold e Athena
+  permite SQL sem manter um warehouse dedicado. Não há transações entre todos os objetos.
+- **Custo vs desempenho:** Lambda elimina servidores permanentes, mas impõe limite de
+  tempo e disco. SQLite permite deduplicar alunos sem manter todos os IDs na RAM.
+  O batch usa 1 GiB RAM, até 900 s e 4 GiB temporários. Na execução real levou
+  188,58 s e atingiu 356 MB de RAM; o pico de disco não foi medido.
+  Volumes maiores exigiriam outra estratégia, fora desta entrega.
+- **Formato:** CSV conserva o extrato e dispensa dependências na Lambda. Snapshots e
+  prefixos organizam a ingestão; a tabela analítica atual é pequena e não particionada.
+  Parquet é uma otimização futura, não implementada nem contabilizada como benefício.
+
 ## Uso futuro em IA
 
 A Gold pode alimentar regressão de indicadores e clustering territorial após enriquecimento
@@ -136,7 +179,7 @@ resultados precisam de auditoria de viés por UF e porte municipal.
 ## Evidências da validação na AWS
 
 A infraestrutura foi implantada e validada no AWS Academy Learner Lab, em `us-east-1`.
-Em 30/08/2026, a execução oficial `20260830T174218Z` aprovou 5.232 municípios e
+Em 30/08/2026, a execução bruta `20260830T195353-25baaf7309bd44ed8096fa30e8579cd6` aprovou 5.232 municípios e
 separou 216 em quarentena. O Athena confirmou 24 UFs e 1.568.597 alunos avaliados.
 O streaming foi validado separadamente com três eventos simulados, não dados oficiais.
 Veja o [índice das evidências atuais](docs/evidencias/README.md).
@@ -158,7 +201,7 @@ atuais dos dados oficiais.
 ## Limitações
 
 - as fixtures em `data/source` e `tests/fixtures` existem somente para testes automatizados;
-- a execução final exige extratos reais da Base dos Dados em `data/official`;
+- a execução final exige extratos brutos reais da Base dos Dados em `data/official-raw`;
 - o Learner Lab restringe regiões, serviços, sessão e orçamento;
 - a infraestrutura AWS precisa ser destruída ao final da demonstração;
 - o projeto entrega a base analítica, não um modelo de IA treinado.

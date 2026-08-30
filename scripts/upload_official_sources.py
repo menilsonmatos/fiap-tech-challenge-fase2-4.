@@ -1,39 +1,32 @@
-from __future__ import annotations
-
+"""Publica um snapshot privado completo antes de atualizar seu ponteiro de leitura."""
 import argparse
-import csv
+import json
 from pathlib import Path
+from uuid import uuid4
 
-from alfabetizacao_pipeline.official_sources import OFFICIAL_SOURCE_FILES
+from alfabetizacao_pipeline.snapshots import RAW_FILES, file_hash, validate_snapshot
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Envia os extratos oficiais para a Bronze no S3")
+def upload_snapshot(s3, bucket, source):
+    validate_snapshot(source)
+    prefix = f"bronze/oficial/ingestao={uuid4().hex}"
+    for name in (*RAW_FILES, "extraction_manifest.json"):
+        s3.upload_file(str(source / name), bucket, f"{prefix}/{name}",
+                       ExtraArgs={"ServerSideEncryption": "AES256"})
+    pointer = {"prefix": prefix,
+               "manifest_sha256": file_hash(source / "extraction_manifest.json")}
+    s3.put_object(Bucket=bucket, Key="control/latest_official.json",
+                  Body=json.dumps(pointer).encode(), ContentType="application/json")
+    return pointer
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bucket", required=True)
-    parser.add_argument("--source-dir", type=Path, default=Path("data/official"))
+    parser.add_argument("--source-dir", type=Path, default=Path("data/official-raw"))
     args = parser.parse_args()
-
     import boto3
-
-    for filename in OFFICIAL_SOURCE_FILES.values():
-        source = args.source_dir / filename
-        if not source.exists():
-            raise FileNotFoundError(f"Fonte oficial ausente: {source}")
-    with (args.source_dir / OFFICIAL_SOURCE_FILES["alunos"]).open(
-        encoding="utf-8-sig", newline=""
-    ) as handle:
-        fields = set(csv.DictReader(handle).fieldnames or [])
-        if "total_avaliados" not in fields or fields & {"id_aluno", "id_escola"}:
-            raise ValueError("Use o agregado de alunos sem identificadores individuais")
-    s3 = boto3.client("s3")
-    for filename in OFFICIAL_SOURCE_FILES.values():
-        source = args.source_dir / filename
-        key = f"bronze/oficial/{filename}"
-        s3.upload_file(str(source), args.bucket, key)
-        print(f"s3://{args.bucket}/{key}")
-    manifest = args.source_dir / "extraction_manifest.json"
-    if manifest.exists():
-        s3.upload_file(str(manifest), args.bucket, "bronze/oficial/extraction_manifest.json")
+    print(json.dumps(upload_snapshot(boto3.client("s3"), args.bucket, args.source_dir), indent=2))
 
 
 if __name__ == "__main__":

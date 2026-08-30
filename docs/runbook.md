@@ -23,12 +23,14 @@ Confira os valores antes de qualquer escrita. O guia de
 
 ```bash
 aws logs tail "/aws/lambda/$FUNCTION" --since 30m --no-cli-pager
-aws s3 ls "s3://$BUCKET/bronze/oficial/"
+aws s3 ls "s3://$BUCKET/bronze/oficial/" --recursive
+aws s3 cp "s3://$BUCKET/control/latest_official.json" -
 aws s3 ls "s3://$BUCKET/manifests/"
 aws s3 ls "s3://$BUCKET/quarantine/"
 ```
 
-3. Conferir os sete CSVs e `extraction_manifest.json` na Bronze. Usar o `run_id` da
+3. Conferir os sete CSVs (incluindo `alunos.csv` bruto) e `extraction_manifest.json`
+   no snapshot apontado por `control/latest_official.json`. Usar o `run_id` da
    resposta para localizar `manifests/<run_id>.json` e
    `quarantine/quality_issues_<run_id>.jsonl`. Um erro antes da conclusão pode não gerar
    manifesto; nesse caso, começar pelos logs.
@@ -43,11 +45,14 @@ aws s3 ls "s3://$BUCKET/quarantine/"
 
 ```bash
 aws s3 ls "s3://$BUCKET/silver/stream/" --recursive
+aws s3 ls "s3://$BUCKET/bronze/stream/" --recursive
 aws s3 ls "s3://$BUCKET/quarantine/stream/" --recursive
 aws logs tail /aws/lambda/fiap-alfabetizacao-dev-stream --since 10m --no-cli-pager
 ```
 
-O nome do log acima pressupõe o prefixo padrão. Ajustar se a configuração for diferente.
+O envelope Kinesis original é gravado em `bronze/stream/ingestao=<id>/event.json`
+antes do parsing e das validações de domínio. O nome do log acima pressupõe o prefixo padrão.
+Não publicar envelopes contendo dados pessoais. Ajustar o nome se a configuração for diferente.
 Aguardar o processamento antes de republicar. Conferir também se o mapeamento Kinesis
 para Lambda está habilitado. Rejeições de parsing são gravadas em arquivos JSONL na
 quarentena; não existe uma tabela `alfabetizacao_silver.dead_letter` nesta implantação.
@@ -74,24 +79,42 @@ para esta implantação Athena. Não executá-los no Athena para reparar a Gold.
 
 ## Armazenamento, backup e recuperação
 
-Na AWS, os uploads usam chaves fixas em `bronze/oficial/`. A Bronze não é imutável:
-um novo upload pode substituir a extração anterior. O bucket não possui versionamento
-habilitado pelo Terraform. O upload também não é atômico; não invocar o batch durante
-uma transferência incompleta.
+Na AWS, cada upload usa `bronze/oficial/ingestao=<uuid>/`. O ponteiro em
+`control/latest_official.json` só muda após o conjunto completo; falhas deixam snapshots
+parciais não publicados e preservam o ponteiro anterior. O bucket possui versionamento.
+Isso preserva histórico de ingestão, mas não implementa Object Lock: usuários autorizados
+e `terraform destroy` podem apagar versões. Não editar manualmente um snapshot publicado.
 
 A execução local mantém cópias Bronze por `ingestao=<run_id>`, mas isso não equivale
 a imutabilidade garantida. Na AWS, manifestos e quarentena batch têm o `run_id` no nome;
-os CSVs batch Silver/Gold usam chaves fixas. O manifesto não é uma cópia dos dados.
+os CSVs batch Silver/Gold atuais usam chaves fixas, mas uma cópia de cada execução
+fica em `runs/<run_id>/`. O manifesto não é uma cópia dos dados.
 
 Antes de substituir extratos ou destruir recursos, baixar os arquivos necessários,
 preservar os pacotes oficiais e salvar as capturas. O ZIP de resultados da demonstração
 contém Silver, Gold, manifestos e quarentena, mas não os logs CloudWatch nem a Bronze.
-Os extratos de origem são preservados separadamente no pacote `dados-oficiais-2024.zip`.
+Na versão atual, os extratos brutos são preservados separadamente no pacote privado
+`dados-oficiais-brutos-2024.zip`. Antes de remover a nova infraestrutura, salvar também
+os snapshots Bronze, `runs/` e `control/`; não publicar esses backups no Git.
 
 Não existe rollback automático por views. Para reconstruir uma versão anterior, é
-necessário um backup daquela extração e a versão correspondente do código, seguido
+necessário um snapshot histórico (ou backup) daquela extração e a versão correspondente do código, seguido
 de reprocessamento e validação. Sem backup, não há recuperação de objetos sobrescritos
-ou apagados garantida pelo projeto.
+ou apagados garantida pelo projeto. As versões S3 também são eliminadas no destroy.
+
+## Batch mensal
+
+A regra `fiap-alfabetizacao-dev-batch-monthly` executa no dia 1 às 06:00 UTC.
+`enable_monthly_batch` é `false` por padrão. Após publicar e validar um snapshot bruto,
+habilitar a variável em `terraform.tfvars`, gerar plano novo e revisar antes de aplicar.
+O job reprocessa o último snapshot; não consulta BigQuery nem obtém dados novos sozinho.
+Uma nova extração deve ser publicada para a próxima execução consumir nova fonte.
+
+Para demonstrar o agendamento sem aguardar um mês, conferir regra, alvo e permissão,
+e testar o mesmo payload manualmente. A comprovação de um disparo temporal exige uma
+execução real agendada; não apresentar uma invocação manual como prova desse disparo.
+Nunca deixar agendamento habilitado depois da demonstração. Em caso de AccessDenied
+no Academy, guardar o erro e consultar as permissões do professor, sem criar roles alternativas.
 
 ## Encerramento e controle de custos
 

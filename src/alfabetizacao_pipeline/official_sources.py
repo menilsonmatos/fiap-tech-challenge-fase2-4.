@@ -33,6 +33,10 @@ def read_source_rows(source_dir: Path) -> dict[str, list[dict[str, str]]]:
     sources: dict[str, list[dict[str, str]]] = {}
     missing: list[str] = []
     for name, filename in OFFICIAL_SOURCE_FILES.items():
+        if name == "alunos" and (source_dir / "alunos.csv").exists():
+            from .raw_students import aggregate_students
+            sources[name] = aggregate_students(source_dir / "alunos.csv")
+            continue
         path = source_dir / filename
         if not path.exists():
             missing.append(filename)
