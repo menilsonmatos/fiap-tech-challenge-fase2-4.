@@ -27,9 +27,13 @@ flowchart LR
 
 | Camada | Conteúdo |
 |---|---|
-| Bronze | CSV original e histórico de ingestão |
+| Bronze | Extratos de entrada; cópias por ingestão localmente e chaves fixas substituíveis na AWS |
 | Silver | registros tipados, validados, deduplicados e em quarentena quando inválidos |
 | Gold | indicadores ponderados por UF e ranking municipal de vulnerabilidade |
+
+O extrato de alunos já chega agregado do BigQuery. O bucket AWS não possui versionamento;
+novos uploads podem substituir a Bronze, e o batch substitui os CSVs Silver/Gold.
+As limitações e a recuperação por backup estão no [runbook](docs/runbook.md).
 
 ## Estrutura
 

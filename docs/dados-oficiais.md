@@ -45,6 +45,11 @@ identificadores ausentes. Não é uma cópia de microdados brutos: é uma reduç
 por privacidade e uso de memória. A Bronze preserva esse extrato agregado como recebido;
 os outros extratos preservam suas colunas originais, com filtro de ano/rede.
 
+Preservar o conteúdo do extrato não significa armazenamento imutável. Localmente são
+criadas cópias por ingestão; na AWS, o upload usa chaves fixas em `bronze/oficial/` e pode
+substituir arquivos anteriores. Não há versionamento habilitado no bucket. Conserve os
+pacotes de extração e consulte o [runbook](runbook.md) antes de substituir dados.
+
 O total de avaliados é uma contagem, não a soma dos pesos amostrais. A média municipal
 ponderada produzida na Gold é um indicador analítico do recorte, não uma reprodução do
 ICA oficial da UF. O resultado publicado da UF é mantido em campo separado na Silver
