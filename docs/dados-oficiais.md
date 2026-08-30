@@ -67,8 +67,9 @@ Somente então o processamento de alunos:
 
 Os contadores distinguem registros originais, avaliações válidas/inválidas e IDs ausentes.
 `source_rows.alunos` passa a contar linhas brutas; `student_aggregate_rows` informa grupos
-municipais. A implementação preserva o algoritmo elegível da versão anterior, mas o
-volume real e sua equivalência precisam ser confirmados após a nova extração.
+municipais. A execução real de 30/08/2026 confirmou 1.840.277 linhas brutas,
+5.452 grupos e as mesmas contagens finais da versão anterior; ver
+[validação bruta AWS](validacao-bruta-aws.md).
 
 ## Qualidade, limites e interpretação
 
@@ -79,7 +80,8 @@ O batch AWS não substitui a Gold anterior quando nenhum município é aprovado.
 
 Na demonstração anterior, 5.448 entradas resultaram em 5.232 aprovados e 216 excluídos:
 96 sem registro de meta, 120 com meta de 2024 vazia. Esses números são referência de
-regressão, não evidência de que a nova versão já foi executada na nuvem.
+regressão. A nova execução bruta na AWS reproduziu essas contagens conforme o relatório
+acima; as evidências antigas continuam identificadas como históricas.
 
 A média ponderada por alunos avaliados não reproduz a ponderação amostral do ICA oficial
 da UF. Os indicadores oficiais da rede pública são mantidos separadamente na Silver/ranking.

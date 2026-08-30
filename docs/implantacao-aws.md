@@ -102,8 +102,9 @@ Após upload completo e teste manual, ativar `enable_monthly_batch = true` em
 A aquisição de novos extratos BigQuery continua manual; a regra processa o snapshot
 completo mais recente. Não deixar recursos ativos esperando um mês para gravar o vídeo.
 Para a demonstração, registre a configuração e identifique honestamente que o teste
-manual não comprova um disparo temporal. Permissões EventBridge ainda precisam ser
-confirmadas neste Learner Lab.
+manual não comprova um disparo temporal. Em 30/08/2026, regra, alvo e permissão foram
+provisionados neste Lab, mas a regra permaneceu DISABLED e não teve disparo automático.
+Veja a [validação bruta](validacao-bruta-aws.md).
 
 Registre capturas do saldo, recursos do stack, manifesto com a fonte oficial, objetos das
 seis entidades na Bronze, Silver/Gold, consulta no Athena e logs do CloudWatch. Não exponha

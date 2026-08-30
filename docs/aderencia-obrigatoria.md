@@ -1,17 +1,19 @@
 # Revisão dos requisitos obrigatórios
 
-Branch: `feature/aderencia-medalhao-obrigatoria`. Nenhum recurso de nuvem foi criado
-durante a implementação. Não foram adicionados dashboard, ML treinado, enriquecimento
+Branch: `feature/aderencia-medalhao-obrigatoria`. Após a implementação local, o operador
+validou a revisão na AWS em 30/08/2026 e destruiu os 16 recursos. Não foram adicionados dashboard, ML treinado, enriquecimento
 externo ou observabilidade avançada.
 
-| Requisito | Implementação | Evidência ainda necessária |
+| Requisito | Implementação | Situação verificada |
 |---|---|---|
-| Histórico Bronze | Snapshots batch por UUID, ponteiro de conjunto completo e bucket versionado | Dois uploads preservados no S3 e versionamento Enabled |
-| Dados brutos | `SELECT *` para alunos do recorte, CSV intacto na Bronze, agregação posterior em SQLite | Nova extração bruta real e medição de disco/tempo na Lambda |
-| Bronze streaming | Envelope Kinesis completo salvo antes de parsing/qualidade | Evento na Bronze e resultado Silver/quarentena correlacionado |
-| Batch periódico | EventBridge mensal, alvo e permissão Lambda; desativado por padrão | Permissões do Lab e configuração/disparo quando autorizado |
-| FinOps | Premissas monetárias, fórmulas, tarifas e limites em `finops.md` | Recalcular com tamanho/tempo reais e conferir saldo |
-| README | Contexto educacional, trade-offs, fluxo da Gold para Athena e limites | Revisão final após nova validação |
+| Histórico Bronze | Snapshots batch por UUID, ponteiro de conjunto completo e bucket versionado | Dois uploads preservados e Enabled; restauração de versões não testada |
+| Dados brutos | `SELECT *` para alunos do recorte, CSV intacto na Bronze, agregação posterior em SQLite | 1.840.277 linhas; 188,58 s e 356 MB; pico de disco não medido |
+| Bronze streaming | Envelope Kinesis completo salvo antes de parsing/qualidade | Dois envelopes e três registros simulados na Silver |
+| Batch periódico | EventBridge mensal, alvo e permissão Lambda; desativado por padrão | Provisionado no Lab e inspecionado DISABLED; sem disparo temporal |
+| FinOps | Premissas monetárias, fórmulas, tarifas e limites em `finops.md` | Tempo faturado registrado; saldo/cobrança final não verificados |
+| README | Contexto educacional, trade-offs, fluxo da Gold para Athena e limites | Atualizado com resultados da execução bruta |
+
+Detalhes e limites: [validação bruta na AWS](validacao-bruta-aws.md).
 
 ## Testes locais
 
@@ -19,7 +21,8 @@ Em 30/08/2026, os 48 testes passaram. `terraform fmt -check` e
 `terraform validate` também passaram (Terraform 1.9.8, AWS 5.100.0 e Archive 2.8.0).
 A validação usou binários oficiais com SHA-256 conferido e `dev_overrides` local,
 pois o ambiente bloqueou a instalação normal dos providers. O aviso de overrides
-é esperado; não houve plano, aplicação ou validação de permissões na AWS.
+é esperado; naquela etapa local não houve plano ou aplicação AWS. Posteriormente,
+o operador executou init, validate, plan e apply no CloudShell com sucesso.
 
 Testes automatizados cobrem a integridade do snapshot, falha de upload sem trocar o
 ponteiro, leitura consistente pelo batch, preservação de duas ingestões e de execuções,

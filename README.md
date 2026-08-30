@@ -51,9 +51,10 @@ Silver/Gold consultados atualmente pelo Athena são projeções substituíveis.
 O versionamento protege substituições, mas não é Object Lock nem proteção contra um
 administrador ou `terraform destroy`. Consulte o [runbook](docs/runbook.md).
 
-**Status desta revisão:** os novos caminhos de Bronze bruta, histórico e agendamento
-exigem nova extração e demonstração AWS. As evidências de 30/08 abaixo comprovam a
-versão anterior, com alunos agregados na origem.
+**Status desta revisão:** Bronze bruta e histórico validados na AWS em 30/08/2026.
+O batch processou 1.840.277 linhas brutas e o Athena confirmou 5.232 municípios.
+A regra mensal foi criada e inspecionada desativada; não houve disparo agendado.
+Veja o [relatório da validação bruta](docs/validacao-bruta-aws.md).
 
 ## Estrutura
 
@@ -162,8 +163,9 @@ BigQuery continua sendo uma etapa manual. Não há credencial GCP dentro da Lamb
   permite SQL sem manter um warehouse dedicado. Não há transações entre todos os objetos.
 - **Custo vs desempenho:** Lambda elimina servidores permanentes, mas impõe limite de
   tempo e disco. SQLite permite deduplicar alunos sem manter todos os IDs na RAM.
-  O batch usa 1 GiB RAM, até 900 s e 4 GiB temporários; o recorte bruto real ainda
-  precisa ser medido. Volumes maiores exigiriam outra estratégia, fora desta entrega.
+  O batch usa 1 GiB RAM, até 900 s e 4 GiB temporários. Na execução real levou
+  188,58 s e atingiu 356 MB de RAM; o pico de disco não foi medido.
+  Volumes maiores exigiriam outra estratégia, fora desta entrega.
 - **Formato:** CSV conserva o extrato e dispensa dependências na Lambda. Snapshots e
   prefixos organizam a ingestão; a tabela analítica atual é pequena e não particionada.
   Parquet é uma otimização futura, não implementada nem contabilizada como benefício.
@@ -177,7 +179,7 @@ resultados precisam de auditoria de viés por UF e porte municipal.
 ## Evidências da validação na AWS
 
 A infraestrutura foi implantada e validada no AWS Academy Learner Lab, em `us-east-1`.
-Em 30/08/2026, a execução oficial `20260830T174218Z` aprovou 5.232 municípios e
+Em 30/08/2026, a execução bruta `20260830T195353-25baaf7309bd44ed8096fa30e8579cd6` aprovou 5.232 municípios e
 separou 216 em quarentena. O Athena confirmou 24 UFs e 1.568.597 alunos avaliados.
 O streaming foi validado separadamente com três eventos simulados, não dados oficiais.
 Veja o [índice das evidências atuais](docs/evidencias/README.md).
@@ -199,7 +201,7 @@ atuais dos dados oficiais.
 ## Limitações
 
 - as fixtures em `data/source` e `tests/fixtures` existem somente para testes automatizados;
-- a execução final exige extratos reais da Base dos Dados em `data/official`;
+- a execução final exige extratos brutos reais da Base dos Dados em `data/official-raw`;
 - o Learner Lab restringe regiões, serviços, sessão e orçamento;
 - a infraestrutura AWS precisa ser destruída ao final da demonstração;
 - o projeto entrega a base analítica, não um modelo de IA treinado.

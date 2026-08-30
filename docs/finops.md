@@ -21,7 +21,7 @@ a implantação se houver consumo inesperado e consulte o CloudWatch e os recurs
 
 Valores em USD para cenário de referência em `us-east-1`, sem impostos, créditos do
 Academy ou desconto promocional. **Não são consumo medido nem garantia de cobrança.**
-O tamanho do CSV bruto e o tempo real da nova Lambda ainda precisam ser medidos.
+O cenário abaixo é a estimativa original; medidas posteriores estão na seção seguinte.
 
 Premissas da sessão: 4 horas de infraestrutura, um shard, uma execução batch de 120 s
 com 1 GiB RAM, três invocações streaming de 1 s, 1 GB total armazenado incluindo versões,
@@ -38,7 +38,7 @@ com 1 GiB RAM, três invocações streaming de 1 s, 1 GB total armazenado inclui
 | Athena | cerca de 100 MB cobrados × US$ 5/TB | 0,0005 | 0,0005 |
 | CloudWatch ingestão de logs | 0,01 GB × US$ 0,50/GB | 0,0050 | 0,0050 |
 | Reserva para metadados, eventos, logs armazenados e arredondamentos | Premissa orçamentária, não tarifa unitária | 0,0500 | 0,0500 |
-| **Total estimado arredondado** | | **0,13** | **11,04** |
+| **Total estimado arredondado para cima** | | **0,13** | **11,04** |
 
 O catálogo pequeno pode ficar na franquia de objetos/acessos do Glue; a estimativa
 não cria jobs Glue ou crawlers. EventBridge usa regra agendada para Lambda na mesma conta,
@@ -70,7 +70,28 @@ forem aceitas. Calcular `bytes cobrados / 2^40 × tarifa por TiB` conforme a reg
 Como referência, US$ 6,25/TiB resulta em cerca de US$ 0,043 para 7 GiB, antes de
 franquias, arredondamentos e outros serviços. Isso não estima o volume real do novo CSV.
 O Sandbox pode cobrir o uso dentro de suas cotas, mas não assumir gratuidade sem verificar
-o projeto e seu uso acumulado. A nova extração bruta ainda não foi executada.
+o projeto e seu uso acumulado. A extração bruta foi executada após dry run de
+272.177.498 bytes; esse valor é estimativa de leitura, não cobrança confirmada.
+
+## Medições posteriores da execução bruta
+
+Em 30/08/2026 o REPORT da Lambda registrou duração de 188.579,61 ms, duração faturada
+de 188.712 ms e memória máxima de 356 MB sobre 1.024 MB configurados.
+O CSV de alunos tinha 104.115.988 bytes; o pacote completo, 105.098.932 bytes
+descompactados. O backup S3 de objetos atuais ocupou aproximadamente 205 MB,
+mas não mede armazenamento faturado incluindo todas as versões.
+
+Aplicando apenas as tarifas de referência já listadas, o compute batch seria
+`188,712 × 1 × 0,0000166667`, aproximadamente US$ 0,003145, antes de franquias,
+requests e impostos. O disco configurado adicional seria aproximadamente
+`3,5 × 188,712 × 0,0000000309 = US$ 0,0000204`. Não é cobrança observada.
+Substituindo apenas o tempo batch do cenário original, seus totais conservadores
+arredondados para cima continuam US$ 0,13 e US$ 11,04. As demais premissas não foram
+medidas: não apresentar esses totais como custo real da sessão.
+
+O pico de disco temporário e o saldo final do Lab não foram medidos. Os 16 recursos
+foram destruídos e o operador confirmou End Lab. Evidências no
+[relatório de validação bruta](validacao-bruta-aws.md).
 
 ## Armazenamento eficiente sem comprometer a Bronze
 
