@@ -4,6 +4,8 @@
 
 | Evidência | O que comprova |
 |---|---|
+| [Implantação bruta](terraform_bruto_implantado.png) | 16 recursos criados sem alterações ou destruições |
+| [Agendamento mensal](agendamento_mensal.png) | Regra DISABLED, cron mensal e alvo batch; não comprova disparo automático |
 | [Batch bruto](batch_bruto_aws.png) | 1.840.277 linhas brutas, 5.452 grupos e 5.232 municípios Silver |
 | [Athena bruto](athena_bruto_aws.png) | 24 UFs, 5.232 municípios, 1.568.597 avaliados |
 | [Histórico versionado](bronze_historico_versionado.png) | Dois snapshots distintos e versionamento Enabled |
@@ -12,8 +14,8 @@
 | [Desempenho batch](lambda_batch_bruto_desempenho.png) | 188,58 s e 356 MB máximos; disco não medido |
 | [Encerramento bruto](encerramento_bruto_destroy.png) | 16 recursos destruídos e estado vazio |
 
-As capturas de implantação e agendamento aguardam ocultação do ID da conta antes
-de inclusão no Git. A auditoria local foi apresentada na conversa, mas seu print
+As capturas de implantação e agendamento foram revisadas após ocultação do ID da conta.
+A auditoria local foi apresentada na conversa, mas seu print
 não foi encontrado nesta pasta na revisão. O [relatório](../validacao-bruta-aws.md)
 registra os resultados, backup e limites da comprovação.
 
