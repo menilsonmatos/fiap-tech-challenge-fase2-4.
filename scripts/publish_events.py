@@ -16,6 +16,8 @@ def main() -> None:
 
     client = boto3.client("kinesis")
     for line in args.file.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
         payload = json.loads(line)
         result = client.put_record(
             StreamName=args.stream,

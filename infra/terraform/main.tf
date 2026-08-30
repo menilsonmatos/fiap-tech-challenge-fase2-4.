@@ -141,7 +141,8 @@ resource "aws_glue_catalog_table" "gold_uf" {
   }
 }
 resource "aws_athena_workgroup" "analytics" {
-  name = "${local.prefix}-analytics"
+  name          = "${local.prefix}-analytics"
+  force_destroy = true
   configuration {
     enforce_workgroup_configuration = true
     publish_cloudwatch_metrics_enabled = true
