@@ -85,7 +85,8 @@ da Alfabetização do INEP publicada pela Base dos Dados. O adaptador devolve o 
 - percentuais entre 0 e 100, UF válida e código IBGE com sete dígitos;
 - registros inválidos enviados à quarentena sem descarte silencioso;
 - S3 privado, criptografia AES-256 e bloqueio de acesso público;
-- função Lambda com permissões limitadas ao bucket, stream e logs do projeto;
+- funções Lambda executadas com a `LabRole` fornecida pelo AWS Academy Learner Lab;
+- em produção, recomenda-se uma função IAM exclusiva com privilégio mínimo;
 - nenhuma credencial ou dado individual de aluno no repositório.
 
 ## FinOps
@@ -99,6 +100,22 @@ consulta a 1 GiB lido. Consulte [docs/finops.md](docs/finops.md).
 A Gold pode alimentar regressão de indicadores e clustering territorial após enriquecimento
 com Censo Escolar e variáveis socioeconômicas. O split deve ser temporal/geográfico e os
 resultados precisam de auditoria de viés por UF e porte municipal.
+
+## Evidências da validação na AWS
+
+A solução foi implantada e validada no AWS Academy Learner Lab, em `us-east-1`. As
+capturas foram anonimizadas e mostram o ciclo completo, da criação à remoção dos recursos.
+
+| Etapa | Evidência |
+|---|---|
+| Implantação das funções e integração | [Terraform aplicado](docs/evidencias/terraform_implantado.png) |
+| Processamento de 9 registros sem erros | [Execução batch](docs/evidencias/processamento_batch.png) |
+| Objetos nas camadas Bronze, Silver e Gold | [Camadas no S3](docs/evidencias/camadas_s3.png) |
+| Publicação dos eventos simulados | [Streaming](docs/evidencias/streaming.png) |
+| Stream provisionado e ativo | [Kinesis Data Streams](docs/evidencias/data-stream-kinesis.png) |
+| Funções batch e streaming em Python 3.12 | [AWS Lambda](docs/evidencias/lambda.png) |
+| Consulta analítica concluída com sucesso | [Amazon Athena](docs/evidencias/athena.png) |
+| Encerramento sem recursos remanescentes | [Terraform destroy](docs/evidencias/terraform_destroy.png) |
 
 ## Limitações
 
