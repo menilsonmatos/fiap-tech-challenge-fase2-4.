@@ -19,4 +19,5 @@ build/
 work-validation/
 work-validation-*/
 demo-output/
+demo-output-oficial/
 infra/terraform/lambda.zip

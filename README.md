@@ -47,6 +47,11 @@ demo-local.ps1               demonstração offline em um comando
 
 ## Pipeline oficial
 
+A extração real e a validação local foram concluídas em 30/08/2026: 5.232 municípios
+aprovados, 216 em quarentena por ausência de meta e 24 UFs na Gold.
+Veja [o relatório de validação oficial](docs/validacao-dados-oficiais.md).
+A nova demonstração AWS com esses extratos ainda está pendente.
+
 A entrada principal é o conjunto `br_inep_avaliacao_alfabetizacao`, publicado pelo INEP
 na Base dos Dados. O pipeline integra `municipio`, `uf`, `meta_alfabetizacao_brasil`,
 `meta_alfabetizacao_uf`, `meta_alfabetizacao_municipio` e `alunos`; o diretório de

@@ -1,6 +1,8 @@
 # Evidência de validação local
 
-Validação executada sem cloud e sem dependências externas.
+## Validação técnica com fixtures
+
+Testes executados localmente, sem consultar serviços de nuvem.
 
 - 35 testes executados e aprovados, incluindo filtros oficiais e o handler AWS Lambda.
 - 9 registros recebidos no batch.
@@ -18,6 +20,21 @@ usam arquivos mínimos com o mesmo esquema público, em `tests/fixtures/official
 substituem a execução final com os extratos reais em `data/official`.
 
 Os testes da extração usam um cliente BigQuery simulado para verificar dry run,
-limites de bytes e geração do manifesto. As consultas ainda precisam de validação
-no BigQuery autenticado antes da demonstração final. Nenhuma nova infraestrutura AWS
-foi criada durante esta rodada de testes.
+limites de bytes e geração do manifesto. São distintos da extração real abaixo.
+
+## Validação com dados oficiais — 30/08/2026
+
+A extração autenticada no BigQuery foi concluída pelo usuário, seguida de processamento
+local. A auditoria dos arquivos locais passou. Veja o relatório completo em
+[docs/validacao-dados-oficiais.md](docs/validacao-dados-oficiais.md).
+
+- Execução: `20260830T163220Z`, ano de referência 2024.
+- 5.448 municípios recebidos; 5.232 aprovados e 216 em quarentena.
+- 96 sem registro correspondente de meta municipal; 120 com meta de 2024 vazia.
+- Ranking: 5.232 municípios. Gold por UF: 24 linhas.
+- Total de alunos avaliados no recorte aprovado: 1.568.597.
+- Status do pipeline: `success_with_quarantine`; status da auditoria: `passed`.
+- 35 testes automatizados executados novamente e aprovados.
+
+A nova execução AWS com os dados oficiais ainda está pendente. As evidências anteriores
+da AWS com amostra sintética não comprovam essa etapa.
