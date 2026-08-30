@@ -12,10 +12,13 @@ data/bronze/
 data/silver/
 data/gold/
 data/quarantine/
+data/official/
 dist/
 build/
 *.egg-info/
 work-validation/
 work-validation-*/
 demo-output/
+demo-output-oficial/
+docs/evidencias-aws-oficial.zip
 infra/terraform/lambda.zip

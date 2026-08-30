@@ -27,6 +27,11 @@ class IndicatorRecord:
     percentual_alfabetizado: float
     meta_percentual: float
     total_avaliados: int
+    taxa_alfabetizacao_uf: float | None = None
+    meta_alfabetizacao_uf: float | None = None
+    taxa_alfabetizacao_brasil: float | None = None
+    meta_alfabetizacao_brasil: float | None = None
+    percentual_participacao: float | None = None
     fonte: str = "INEP/Base dos Dados"
     data_ingestao: str = ""
 
@@ -57,9 +62,20 @@ def parse_record(raw: dict[str, Any]) -> IndicatorRecord:
         percentual_alfabetizado=float(str(raw["percentual_alfabetizado"]).replace(",", ".")),
         meta_percentual=float(str(raw["meta_percentual"]).replace(",", ".")),
         total_avaliados=int(float(raw["total_avaliados"])),
+        taxa_alfabetizacao_uf=_optional_float(raw.get("taxa_alfabetizacao_uf")),
+        meta_alfabetizacao_uf=_optional_float(raw.get("meta_alfabetizacao_uf")),
+        taxa_alfabetizacao_brasil=_optional_float(raw.get("taxa_alfabetizacao_brasil")),
+        meta_alfabetizacao_brasil=_optional_float(raw.get("meta_alfabetizacao_brasil")),
+        percentual_participacao=_optional_float(raw.get("percentual_participacao")),
         fonte=str(raw.get("fonte") or "INEP/Base dos Dados").strip(),
         data_ingestao=str(raw.get("data_ingestao") or "").strip(),
     )
+
+
+def _optional_float(value: Any) -> float | None:
+    if value is None or str(value).strip() == "":
+        return None
+    return float(str(value).replace(",", "."))
 
 
 def parse_event(raw: dict[str, Any]) -> IndicatorRecord:
@@ -70,4 +86,3 @@ def parse_event(raw: dict[str, Any]) -> IndicatorRecord:
     if not isinstance(payload, dict):
         raise ValueError("payload precisa ser um objeto")
     return parse_record(payload)
-
